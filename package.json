@@ -1,0 +1,24 @@
+{
+  "name": "org-admin",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev:backend": "cd backend && bun run dev",
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta\" \"bun run dev:backend\" \"bun run dev:frontend\"",
+
+    "build:backend": "cd backend && bun run build",
+    "build:frontend": "cd frontend && bun run build",
+    "build": "bun run build:backend && bun run build:frontend",
+
+    "start:backend": "cd backend && bun run start",
+    "start": "cd backend && NODE_ENV=production bun run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

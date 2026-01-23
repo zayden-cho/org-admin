@@ -1,0 +1,8 @@
+[install]
+linker = "hoisted"
+
+[install.cache]
+dir = ".bun-cache"
+
+[install.lockfile]
+save = true
