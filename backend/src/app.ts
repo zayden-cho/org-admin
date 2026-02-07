@@ -5,8 +5,11 @@ import { readFileSync } from 'fs';
 import { serveStatic } from 'hono/bun';
 import path from 'path';
 
-import { corsConfig } from './core/config/cors.config';
-import { errorHandler } from './core/middlewares/error';
+import { corsConfig } from '@/core/config/cors.config';
+import { errorHandler } from '@/core/middlewares/error';
+
+import calendarRouter from '@/features/calendar/calendar.routes';
+import krewsRouter from '@/features/krews/krews.routes';
 
 const app = new Hono();
 
@@ -18,10 +21,13 @@ app.get('/health', (c) => c.json({
     timestamp: new Date().toISOString()
 }));
 
+app.route('/api/calendar', calendarRouter);
+app.route('/api/krews', krewsRouter);
+
 if (process.env.NODE_ENV === 'production') {
     const staticPath = path.join(process.cwd(), '..', 'frontend', 'dist');
 
-    console.log('📁 Serving static files from:', staticPath);
+    console.log(`Serving static files from:`, staticPath);
 
     app.use('*', serveStatic({ root: staticPath }));
 }

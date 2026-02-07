@@ -1,4 +1,4 @@
-import { Context } from 'hono';
+import { Context, Next } from 'hono';
 
 export const errorHandler = (err: Error, c: Context) => {
     console.error('Error occurred:', {

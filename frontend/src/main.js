@@ -1,11 +1,13 @@
 import { createApp } from 'vue';
-import App from './App.vue';
-import router from './router';
-
 import Aura from '@primeuix/themes/aura';
 import PrimeVue from 'primevue/config';
 import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
+import FullCalendar from '@fullcalendar/vue3';
+
+import router from './router';
+
+import App from './App.vue';
 
 import '@/assets/tailwind.css';
 import '@/assets/styles.scss';
@@ -23,5 +25,7 @@ app.use(PrimeVue, {
 });
 app.use(ToastService);
 app.use(ConfirmationService);
+
+app.component('FullCalendar', FullCalendar);
 
 app.mount('#app');

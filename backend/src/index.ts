@@ -1,12 +1,12 @@
-import app from './app'
+import app from '@/app'
 
-const port = Number(process.env.PORT ?? 3000);
+const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
 const idleTimeoutEnv = Number(process.env.IDLE_TIMEOUT ?? 120);
 const idleTimeout = Math.min(idleTimeoutEnv, 255);
-const host = process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost';
+const port = Number(process.env.PORT ?? 3000);
 
 if (idleTimeoutEnv > 255) {
-    console.warn(`⚠️ IDLE_TIMEOUT (${idleTimeoutEnv}) exceeds maximum (255). Using 255 instead.`);
+    console.warn(`IDLE_TIMEOUT (${idleTimeoutEnv}) exceeds maximum (255). Using 255 instead.`);
 }
 
 Bun.serve({
@@ -15,6 +15,6 @@ Bun.serve({
     idleTimeout: idleTimeout,
 });
 
-console.log(`Server running on http://${host}:${port}`);
+console.log(`Server running on host: ${host}, port: ${port}`);
 console.log(`Idle timeout: ${idleTimeout} seconds`);
-console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Environment: ${process.env.NODE_ENV || "development"}`);

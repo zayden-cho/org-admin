@@ -1,10 +1,11 @@
 <script setup>
-import { useLayout } from '@/layout/composables/layout';
 import { $t, updatePreset, updateSurfacePalette } from '@primeuix/themes';
+import { ref, onMounted } from 'vue';
 import Aura from '@primeuix/themes/aura';
 import Lara from '@primeuix/themes/lara';
 import Nora from '@primeuix/themes/nora';
-import { ref, onMounted } from 'vue';
+
+import { useLayout } from '@/layout/composables/layout';
 
 const { layoutConfig, isDarkTheme, changeMenuMode } = useLayout();
 

@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue';
-import AppMenuItem from './AppMenuItem.vue';
 
-// ✅ 간단한 메뉴 구조
+import AppMenuItem from '@/layout/AppMenuItem.vue';
+
 const model = ref([
     {
         label: '홈',

@@ -7,9 +7,18 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Button: typeof import('primevue/button')['default']
+    CalendarWidget: typeof import('./src/components/dashboard/CalendarWidget.vue')['default']
+    Chart: typeof import('primevue/chart')['default']
+    CorpDistributionWidget: typeof import('./src/components/dashboard/CorpDistributionWidget.vue')['default']
+    CorpStatsWidget: typeof import('./src/components/dashboard/CorpStatsWidget.vue')['default']
+    Dialog: typeof import('primevue/dialog')['default']
+    ProgressSpinner: typeof import('primevue/progressspinner')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SelectButton: typeof import('primevue/selectbutton')['default']
+    StatsWidget: typeof import('./src/components/dashboard/StatsWidget.vue')['default']
+    Tag: typeof import('primevue/tag')['default']
     Toast: typeof import('primevue/toast')['default']
   }
   export interface ComponentCustomProperties {

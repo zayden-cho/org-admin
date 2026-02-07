@@ -18,7 +18,13 @@ node_modules/
 .env.production.local
 .env.test.local
 
-# 참고: .env.development, .env.production은 커밋됨 (팀 공유)
+# ========================================
+# Credentials & Secrets
+# ========================================
+# Google Service Account
+credentials/
+backend/src/core/config/credentials.json
+**/credentials.json
 
 # API Keys & Secrets
 *.key
