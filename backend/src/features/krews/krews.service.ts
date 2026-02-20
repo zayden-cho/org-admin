@@ -11,11 +11,10 @@ export class KrewsService {
 
     constructor() {
         this.repository = new KrewsRepository();
-
         this.cache = {
             data: null,
             timestamp: 0,
-            ttl: 5 * 60 * 1000,  // 5분 캐시
+            ttl: 5 * 60 * 1000,
         };
     }
 
@@ -23,7 +22,9 @@ export class KrewsService {
      * 캐시 유효성 확인
      */
     private isCacheValid(): boolean {
-        if (!this.cache.data) return false;
+        if (!this.cache.data) {
+            return false;
+        }
 
         const now = Date.now();
         const age = now - this.cache.timestamp;
@@ -33,11 +34,25 @@ export class KrewsService {
 
     /**
      * 전체 조합원 조회
+     * @returns { data, fromCache }
      */
-    async getAllKrews(forceRefresh: boolean = false): Promise<KrewRawData[]> {
+    async getAllKrews(forceRefresh: boolean = false): Promise<{ data: KrewRawData[], fromCache: boolean }> {
+        console.log('========================================');
+        console.log('getAllKrews called');
+        console.log('forceRefresh:', forceRefresh);
+        console.log('cache.data exists:', !!this.cache.data);
+
         if (!forceRefresh && this.isCacheValid()) {
-            return this.cache.data!;
+            console.log('Returning cached data! (length:', this.cache.data!.length, ')');
+            console.log('========================================');
+            return {
+                data: this.cache.data!,
+                fromCache: true
+            };
         }
+
+        console.log('Fetching from Google Sheets...');
+        const startTime = Date.now();
 
         const sheetDataMap = await this.repository.getAllKrewsSheetsData();
 
@@ -102,7 +117,47 @@ export class KrewsService {
         this.cache.data = sorted;
         this.cache.timestamp = Date.now();
 
-        return sorted;
+        const elapsed = Date.now() - startTime;
+
+        console.log('Data fetched and cached!');
+        console.log('items:', sorted.length);
+        console.log('elapsed:', `${elapsed}ms`);
+        console.log('========================================');
+
+        return {
+            data: sorted,
+            fromCache: false
+        };
+    }
+
+    /**
+     * 법인별 조합원 조회
+     */
+    async getKrewsByCorp(corp: string): Promise<KrewRawData[]> {
+        const result = await this.getAllKrews();
+
+        return result.data.filter(krew => krew.corp === corp);
+    }
+
+    /**
+     * ID로 조합원 조회
+     */
+    async getKrewById(id: string): Promise<KrewRawData | null> {
+        const result = await this.getAllKrews();
+
+        return result.data.find(krew => krew.krewId === id) || null;
+    }
+
+    /**
+     * 캐시 강제 갱신
+     */
+    async syncKrews(): Promise<{ success: boolean; updated: number }> {
+        const result = await this.getAllKrews(true);
+
+        return {
+            success: true,
+            updated: result.data.length,
+        };
     }
 }
 

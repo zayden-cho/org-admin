@@ -14,4 +14,11 @@ export class KrewsRepository extends SheetsRepository {
     async getAllKrewsSheetsData(): Promise<Map<string, string[][]>> {
         return this.getAllSheetsData('A:P');
     }
+
+    /**
+     * Krews 데이터 범위 (A~P 컬럼)
+     */
+    async getKrewsSheetData(sheetName: string): Promise<string[][]> {
+        return this.getSheetData(sheetName, 'A:P');
+    }
 }

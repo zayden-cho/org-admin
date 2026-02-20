@@ -13,6 +13,16 @@ const model = ref([
                 to: '/'
             }
         ]
+    },
+    {
+        label: '관리',
+        items: [
+            {
+                label: '조합원 목록',
+                icon: 'pi pi-fw pi-users',
+                to: '/krews'
+            }
+        ]
     }
 ]);
 </script>
