@@ -1,6 +1,6 @@
 <script setup>
 import { useLayout } from '@/layout/composables/layout';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 const { layoutConfig, isDarkTheme } = useLayout();
 
@@ -20,6 +20,7 @@ const corpColorMap = {
     '링키지랩': '#10B981',          // 에메랄드
     '볼트업': '#8B5CF6',            // 바이올렛
     '서울아레나': '#D946EF',        // 푸시아
+    '야나두': '#78716C',            // 스톤
     '에이엑스지': '#F59E0B',        // 앰버
     '엑스엘게임즈': '#64748B',      // 슬레이트
     '카카오': '#FFCC00',           // 카카오 옐로우

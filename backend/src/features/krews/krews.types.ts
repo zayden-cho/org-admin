@@ -12,6 +12,7 @@ export interface KrewRawData {
     konacardAppRegistered: string;
     position: string;
     orgChart: string[];
+    chatRoomJoined: string;
 }
 
 export const KREW_HEADER_MAP: Record<string, keyof KrewRawData> = {
@@ -28,4 +29,5 @@ export const KREW_HEADER_MAP: Record<string, keyof KrewRawData> = {
     "코나카드 앱등록여부": "konacardAppRegistered",
     "직책": "position",
     "조직도": "orgChart",
+    "조합원방 참여여부": "chatRoomJoined"
 };

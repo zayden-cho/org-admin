@@ -1,5 +1,4 @@
-import { CalendarRepository } from '@/core/repositories/calendar.repository';
-import { GOOGLE_CALENDAR_IDS } from '@/core/config/google.config';
+import { CalendarRepository } from '@/features/calendar/calendar.repository';  // ✅ Feature!
 import { CalendarEvent, CalendarEventRaw } from '@/features/calendar/calendar.types';
 
 export class CalendarService {
@@ -11,14 +10,12 @@ export class CalendarService {
     };
 
     constructor() {
-        this.repository = new CalendarRepository({
-            calendarId: GOOGLE_CALENDAR_IDS.MAIN,
-        });
+        this.repository = new CalendarRepository();
 
         this.cache = {
             data: null,
             timestamp: 0,
-            ttl: 5 * 60 * 1000, // 5분 캐시
+            ttl: 5 * 60 * 1000,
         };
     }
 
@@ -114,6 +111,18 @@ export class CalendarService {
     async getMonthEvents(year: number, month: number): Promise<CalendarEvent[]> {
         const rawEvents = await this.repository.getMonthEvents(year, month);
         return this.transformEvents(rawEvents);
+    }
+
+    /**
+     * 캐시 강제 갱신
+     */
+    async refreshCache(): Promise<{ success: boolean; updated: number }> {
+        const events = await this.getAllEvents(true);
+
+        return {
+            success: true,
+            updated: events.length,
+        };
     }
 }
 

@@ -12,4 +12,46 @@ export class KrewsService {
             : `${API_BASE_URL}/api/krews`;
         return await axios.get(url);
     }
+
+    /**
+     * 법인별 조합원 조회
+     */
+    static async getKrewsByCorp(corp) {
+        return axios.get(`${API_BASE_URL}/api/krews/corp/${corp}`);
+    }
+
+    /**
+     * 조합원 상세 조회
+     */
+    static async getKrewById(id) {
+        return axios.get(`${API_BASE_URL}/api/krews/detail/${id}`);
+    }
+
+    /**
+     * 캐시 강제 갱신
+     */
+    static async syncKrews() {
+        return axios.post(`${API_BASE_URL}/api/krews/sync`);
+    }
+
+    /**
+     * 전체 조합원 동기화 (원본 → 타겟)
+     */
+    static async syncAllKrews() {
+        return axios.post(`${API_BASE_URL}/api/sync/all`);
+    }
+
+    /**
+     * 법인별 조합원 동기화
+     */
+    static async syncCorpKrews(corp) {
+        return axios.post(`${API_BASE_URL}/api/sync/corp/${corp}`);
+    }
+
+    /**
+     * 법인별 코나카드 동기화
+     */
+    static async syncCorpKonacards(corp) {
+        return axios.post(`${API_BASE_URL}/api/sync/konacard/${corp}`);
+    }
 }

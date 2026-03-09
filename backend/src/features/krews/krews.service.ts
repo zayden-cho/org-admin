@@ -11,6 +11,7 @@ export class KrewsService {
 
     constructor() {
         this.repository = new KrewsRepository();
+
         this.cache = {
             data: null,
             timestamp: 0,
@@ -37,21 +38,29 @@ export class KrewsService {
      * @returns { data, fromCache }
      */
     async getAllKrews(forceRefresh: boolean = false): Promise<{ data: KrewRawData[], fromCache: boolean }> {
-        console.log('========================================');
-        console.log('getAllKrews called');
-        console.log('forceRefresh:', forceRefresh);
-        console.log('cache.data exists:', !!this.cache.data);
+        const isDev = process.env.NODE_ENV !== 'production';
+
+        if (isDev) {
+            console.log('========================================');
+            console.log('getAllKrews called');
+            console.log('forceRefresh:', forceRefresh);
+            console.log('cache.data exists:', !!this.cache.data);
+        }
 
         if (!forceRefresh && this.isCacheValid()) {
-            console.log('Returning cached data! (length:', this.cache.data!.length, ')');
-            console.log('========================================');
+            if (isDev) {
+                console.log('Returning cached data! (length:', this.cache.data!.length, ')');
+                console.log('========================================');
+            }
             return {
                 data: this.cache.data!,
                 fromCache: true
             };
         }
 
-        console.log('Fetching from Google Sheets...');
+        if (isDev) {
+            console.log('Fetching from Google Sheets...');
+        }
         const startTime = Date.now();
 
         const sheetDataMap = await this.repository.getAllKrewsSheetsData();
@@ -59,7 +68,9 @@ export class KrewsService {
         const krews: KrewRawData[] = [];
 
         for (const [sheetName, values] of sheetDataMap.entries()) {
-            if (values.length < 2) continue;
+            if (values.length < 2) {
+                continue;
+            }
 
             const headers = values[0].map(h => String(h).trim());
 
@@ -72,36 +83,38 @@ export class KrewsService {
             }
 
             const orgChartStartIndex = headers.indexOf('조직도');
+            const krewRoomJoinedIndex = headers.indexOf('조합원방 참여여부');
 
             for (let i = 1; i < values.length; i++) {
                 const row = values[i];
-
                 if (row.every(cell => !cell || String(cell).trim() === '')) {
                     continue;
                 }
 
                 let orgChart: string[] = [];
-
                 if (orgChartStartIndex !== -1 && orgChartStartIndex < row.length) {
-                    orgChart = row.slice(orgChartStartIndex)
+                    const endIndex = krewRoomJoinedIndex !== -1 ? krewRoomJoinedIndex : row.length;
+                    orgChart = row.slice(orgChartStartIndex, endIndex)  // ✅ 범위 지정!
                         .filter(cell => cell && String(cell).trim() !== '')
                         .map(cell => String(cell).trim());
                 }
 
                 const krew: KrewRawData = {
-                    corpId: row[colIndex['corpId']] || '',
-                    krewId: row[colIndex['krewId']] || '',
-                    corp: row[colIndex['corp']] || sheetName,
-                    name: row[colIndex['name']] || '',
-                    ldap: row[colIndex['ldap']] || '',
-                    phoneNumber: row[colIndex['phoneNumber']] || '',
-                    isCheckoff: row[colIndex['isCheckoff']] || '',
-                    status: row[colIndex['status']] || '',
-                    joinMonth: row[colIndex['joinMonth']] || '',
-                    konacard: row[colIndex['konacard']] || '',
-                    konacardAppRegistered: row[colIndex['konacardAppRegistered']] || '',
-                    position: row[colIndex['position']] || '',
+                    corpId: row[colIndex["corpId"]] || "",
+                    krewId: row[colIndex["krewId"]] || "",
+                    corp: row[colIndex["corp"]] || sheetName,
+                    name: row[colIndex["name"]] || "",
+                    ldap: row[colIndex["ldap"]] || "",
+                    phoneNumber: row[colIndex["phoneNumber"]] || "",
+                    isCheckoff: row[colIndex["isCheckoff"]] || "",
+                    status: row[colIndex["status"]] || "",
+                    joinMonth: row[colIndex["joinMonth"]] || "",
+                    konacard: row[colIndex["konacard"]] || "",
+                    konacardAppRegistered: row[colIndex["konacardAppRegistered"]] || "",
+                    position: row[colIndex["position"]] || "",
                     orgChart,
+                    chatRoomJoined: row[colIndex["chatRoomJoined"]] || "",
+
                 };
 
                 krews.push(krew);
@@ -119,10 +132,14 @@ export class KrewsService {
 
         const elapsed = Date.now() - startTime;
 
-        console.log('Data fetched and cached!');
-        console.log('items:', sorted.length);
-        console.log('elapsed:', `${elapsed}ms`);
-        console.log('========================================');
+        if (isDev) {
+            console.log('Data fetched and cached!');
+            console.log('items:', sorted.length);
+            console.log('elapsed:', `${elapsed}ms`);
+            console.log('========================================');
+        } else {
+            console.log(`Krews data fetched: ${sorted.length} items in ${elapsed}ms`);
+        }
 
         return {
             data: sorted,

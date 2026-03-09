@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    BlockUI: typeof import('primevue/blockui')['default']
     Button: typeof import('primevue/button')['default']
     CalendarWidget: typeof import('./src/components/dashboard/CalendarWidget.vue')['default']
     Chart: typeof import('primevue/chart')['default']
@@ -25,6 +26,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     Select: typeof import('primevue/select')['default']
     SelectButton: typeof import('primevue/selectbutton')['default']
+    Skeleton: typeof import('primevue/skeleton')['default']
     StatsWidget: typeof import('./src/components/dashboard/StatsWidget.vue')['default']
     Tag: typeof import('primevue/tag')['default']
     Toast: typeof import('primevue/toast')['default']

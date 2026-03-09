@@ -11,10 +11,11 @@ if (idleTimeoutEnv > 255) {
 
 Bun.serve({
     fetch: app.fetch,
+    hostname: host,
     port: port,
     idleTimeout: idleTimeout,
 });
 
-console.log(`Server running on host: ${host}, port: ${port}`);
+console.log(`Server running on ${host}:${port}`);
 console.log(`Idle timeout: ${idleTimeout} seconds`);
 console.log(`Environment: ${process.env.NODE_ENV || "development"}`);

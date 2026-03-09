@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
 
 import { CalendarService } from '@/service/CalendarService';
 import { KrewsService } from '@/service/KrewsService';
@@ -85,23 +84,62 @@ async function loadData() {
 </script>
 
 <template>
-    <div v-if="loading" class="flex items-center justify-center min-h-screen">
-        <ProgressSpinner />
-    </div>
+    <div class="grid grid-cols-12 gap-8">
+        <!-- ✅ 로딩 중에도 레이아웃 표시! -->
 
-    <div v-else class="grid grid-cols-12 gap-8">
-        <StatsWidget :stats="stats" />
+        <!-- 통계 위젯 스켈레톤 -->
+        <div v-if="loading" class="col-span-12">
+            <div class="grid grid-cols-12 gap-6">
+                <div v-for="i in 4" :key="i" class="col-span-12 md:col-span-6 xl:col-span-3">
+                    <div class="card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <Skeleton width="8rem" height="1.5rem" class="mb-2"></Skeleton>
+                                <Skeleton width="6rem" height="2.5rem"></Skeleton>
+                            </div>
+                            <Skeleton shape="circle" size="3rem"></Skeleton>
+                        </div>
+                        <Skeleton width="10rem" height="1rem"></Skeleton>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <StatsWidget v-else :stats="stats" />
 
+        <!-- 캘린더 위젯 -->
         <div class="col-span-12">
-            <CalendarWidget :events="calendarEvents" />
+            <div v-if="loading" class="card">
+                <div class="font-semibold text-xl mb-4">
+                    <Skeleton width="10rem" height="1.5rem"></Skeleton>
+                </div>
+                <Skeleton width="100%" height="500px"></Skeleton>
+            </div>
+            <CalendarWidget v-else :events="calendarEvents" />
         </div>
 
+        <!-- 법인 분포 차트 스켈레톤 -->
         <div class="col-span-12 xl:col-span-6">
-            <CorpDistributionWidget :corp-stats="corpStats" />
+            <div v-if="loading" class="card">
+                <div class="font-semibold text-xl mb-4">
+                    <Skeleton width="10rem" height="1.5rem"></Skeleton>
+                </div>
+                <Skeleton width="100%" height="400px"></Skeleton>
+            </div>
+            <CorpDistributionWidget v-else :corp-stats="corpStats" />
         </div>
 
+        <!-- 법인 통계 테이블 스켈레톤 -->
         <div class="col-span-12 xl:col-span-6">
+            <div v-if="loading" class="card">
+                <div class="font-semibold text-xl mb-4">
+                    <Skeleton width="10rem" height="1.5rem"></Skeleton>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <Skeleton v-for="i in 8" :key="i" width="100%" height="3rem"></Skeleton>
+                </div>
+            </div>
             <CorpStatsWidget
+                v-else
                 :corp-stats="corpStats"
                 :total-krews="stats.totalKrews"
             />
