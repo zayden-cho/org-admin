@@ -1,4 +1,4 @@
-import { CalendarRepository } from '@/features/calendar/calendar.repository';  // ✅ Feature!
+import { CalendarRepository } from '@/features/calendar/calendar.repository';
 import { CalendarEvent, CalendarEventRaw } from '@/features/calendar/calendar.types';
 
 export class CalendarService {

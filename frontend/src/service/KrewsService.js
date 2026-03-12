@@ -1,15 +1,13 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 export class KrewsService {
     /**
      * 전체 조합원 조회
      */
     static async getKrews(forceRefresh = false) {
-        const url = forceRefresh
-            ? `${API_BASE_URL}/api/krews?refresh=true`
-            : `${API_BASE_URL}/api/krews`;
+        const url = forceRefresh ? `${API_BASE_URL}/api/krews?refresh=true` : `${API_BASE_URL}/api/krews`;
         return await axios.get(url);
     }
 
@@ -17,41 +15,41 @@ export class KrewsService {
      * 법인별 조합원 조회
      */
     static async getKrewsByCorp(corp) {
-        return axios.get(`${API_BASE_URL}/api/krews/corp/${corp}`);
+        return await axios.get(`${API_BASE_URL}/api/krews/corp/${corp}`);
     }
 
     /**
      * 조합원 상세 조회
      */
     static async getKrewById(id) {
-        return axios.get(`${API_BASE_URL}/api/krews/detail/${id}`);
+        return await axios.get(`${API_BASE_URL}/api/krews/detail/${id}`);
     }
 
     /**
      * 캐시 강제 갱신
      */
     static async syncKrews() {
-        return axios.post(`${API_BASE_URL}/api/krews/sync`);
+        return await axios.post(`${API_BASE_URL}/api/krews/sync`);
     }
 
     /**
      * 전체 조합원 동기화 (원본 → 타겟)
      */
     static async syncAllKrews() {
-        return axios.post(`${API_BASE_URL}/api/sync/all`);
+        return await axios.post(`${API_BASE_URL}/api/sync/all`);
     }
 
     /**
      * 법인별 조합원 동기화
      */
     static async syncCorpKrews(corp) {
-        return axios.post(`${API_BASE_URL}/api/sync/corp/${corp}`);
+        return await axios.post(`${API_BASE_URL}/api/sync/corp/${corp}`);
     }
 
     /**
      * 법인별 코나카드 동기화
      */
     static async syncCorpKonacards(corp) {
-        return axios.post(`${API_BASE_URL}/api/sync/konacard/${corp}`);
+        return await axios.post(`${API_BASE_URL}/api/sync/konacard/${corp}`);
     }
 }

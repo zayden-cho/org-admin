@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { KrewsService } from '@/service/KrewsService';
+
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
+
+import { KrewsService } from '@/service/KrewsService';
 
 const toast = useToast();
 const dt = ref();
@@ -31,12 +33,12 @@ const lastSyncCount = ref(null);
 
 // ✅ Sleep 유틸 함수
 function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // 법인 목록
 const corpList = computed(() => {
-    const corps = [...new Set(krews.value.map(k => k.corp))];
+    const corps = [...new Set(krews.value.map((k) => k.corp))];
     return corps.filter(Boolean).sort();
 });
 
@@ -48,17 +50,17 @@ const statusList = [
 
 // 필터링된 데이터
 const filteredKrews = computed(() => {
-    let result = krews.value.map(k => ({
+    let result = krews.value.map((k) => ({
         ...k,
         orgChartString: k.orgChart && k.orgChart.length > 0 ? k.orgChart.join(' ') : ''
     }));
 
     if (selectedCorp.value) {
-        result = result.filter(k => k.corp === selectedCorp.value);
+        result = result.filter((k) => k.corp === selectedCorp.value);
     }
 
     if (selectedStatus.value) {
-        result = result.filter(k => k.status === selectedStatus.value);
+        result = result.filter((k) => k.status === selectedStatus.value);
     }
 
     return result;
@@ -67,11 +69,14 @@ const filteredKrews = computed(() => {
 // ========================================
 // 페이지 전환 시 선택 해제
 // ========================================
-watch(() => dt.value?.d_first, (newFirst, oldFirst) => {
-    if (oldFirst !== undefined && newFirst !== oldFirst) {
-        selectedKrews.value = [];
+watch(
+    () => dt.value?.d_first,
+    (newFirst, oldFirst) => {
+        if (oldFirst !== undefined && newFirst !== oldFirst) {
+            selectedKrews.value = [];
+        }
     }
-});
+);
 
 // ========================================
 // 현재 페이지 데이터 가져오기
@@ -93,9 +98,7 @@ const isAllCurrentPageSelected = computed(() => {
 
     if (currentPageData.length === 0) return false;
 
-    return currentPageData.every(item =>
-        selectedKrews.value.some(selected => selected.krewId === item.krewId)
-    );
+    return currentPageData.every((item) => selectedKrews.value.some((selected) => selected.krewId === item.krewId));
 });
 
 // ========================================
@@ -108,8 +111,8 @@ function toggleCurrentPageSelection(checked) {
         const newSelections = [...selectedKrews.value];
         let addedCount = 0;
 
-        currentPageData.forEach(item => {
-            if (!newSelections.some(s => s.krewId === item.krewId)) {
+        currentPageData.forEach((item) => {
+            if (!newSelections.some((s) => s.krewId === item.krewId)) {
                 newSelections.push(item);
                 addedCount++;
             }
@@ -126,12 +129,10 @@ function toggleCurrentPageSelection(checked) {
             });
         }
     } else {
-        const currentPageIds = currentPageData.map(item => item.krewId);
+        const currentPageIds = currentPageData.map((item) => item.krewId);
         const beforeCount = selectedKrews.value.length;
 
-        selectedKrews.value = selectedKrews.value.filter(
-            item => !currentPageIds.includes(item.krewId)
-        );
+        selectedKrews.value = selectedKrews.value.filter((item) => !currentPageIds.includes(item.krewId));
 
         const removedCount = beforeCount - selectedKrews.value.length;
 
@@ -150,7 +151,7 @@ function toggleCurrentPageSelection(checked) {
 // 개별 행 선택/해제 토글
 // ========================================
 function toggleRowSelection(rowData) {
-    const index = selectedKrews.value.findIndex(item => item.krewId === rowData.krewId);
+    const index = selectedKrews.value.findIndex((item) => item.krewId === rowData.krewId);
 
     if (index > -1) {
         selectedKrews.value.splice(index, 1);
@@ -163,7 +164,7 @@ function toggleRowSelection(rowData) {
 // 개별 행 선택 여부 체크
 // ========================================
 function isRowSelected(rowData) {
-    return selectedKrews.value.some(item => item.krewId === rowData.krewId);
+    return selectedKrews.value.some((item) => item.krewId === rowData.krewId);
 }
 
 // ========================================
@@ -209,9 +210,7 @@ async function loadKrews(forceRefresh = false) {
         } else {
             console.log('새로 가져옴');
 
-            const count = lastSyncCount.value !== null
-                ? lastSyncCount.value
-                : krews.value.length;
+            const count = lastSyncCount.value !== null ? lastSyncCount.value : krews.value.length;
 
             toast.add({
                 severity: 'success',
@@ -430,31 +429,31 @@ function exportCSV() {
 // ========================================
 function getCorpColor(corp) {
     const colors = {
-        '그립컴퍼니': 'success',
-        '디케이테크인': 'danger',
-        '링키지랩': 'warning',
-        '볼트업': 'primary',
-        '서울아레나': 'info',
-        '야나두': 'info',
-        '에이엑스지': 'success',
-        '엑스엘게임즈': 'secondary',
-        '카카오': 'warning',
-        '카카오게임즈': 'success',
-        '카카오모빌리티': 'primary',
-        '카카오뱅크': 'warn',
-        '카카오스타일': 'secondary',
-        '카카오엔터테인먼트': 'danger',
-        '카카오엔터프라이즈': 'info',
-        '카카오임팩트': 'success',
-        '카카오페이': 'warning',
-        '카카오페이증권': 'primary',
-        '카카오헬스케어': 'info',
-        '카카오VX': 'info',
-        '케이드라이브': 'warning',
-        '케이앤웍스': 'primary',
-        '케이엠파크': 'info',
-        '키이스트': 'info',
-        'SM엔터테인먼트': 'secondary',
+        그립컴퍼니: 'success',
+        디케이테크인: 'danger',
+        링키지랩: 'warning',
+        볼트업: 'primary',
+        서울아레나: 'info',
+        야나두: 'info',
+        에이엑스지: 'success',
+        엑스엘게임즈: 'secondary',
+        카카오: 'warning',
+        카카오게임즈: 'success',
+        카카오모빌리티: 'primary',
+        카카오뱅크: 'warn',
+        카카오스타일: 'secondary',
+        카카오엔터테인먼트: 'danger',
+        카카오엔터프라이즈: 'info',
+        카카오임팩트: 'success',
+        카카오페이: 'warning',
+        카카오페이증권: 'primary',
+        카카오헬스케어: 'info',
+        카카오VX: 'info',
+        케이드라이브: 'warning',
+        케이앤웍스: 'primary',
+        케이엠파크: 'info',
+        키이스트: 'info',
+        SM엔터테인먼트: 'secondary'
     };
     return colors[corp] || 'secondary';
 }
@@ -469,7 +468,7 @@ onMounted(async () => {
         <!-- ✅ 갱신 중 OR 로딩 중 오버레이 (통합!) -->
         <div v-if="syncing || loading" class="sync-overlay">
             <div class="sync-message-box">
-                <i class="pi pi-spin pi-spinner" style="font-size: 3rem; color: var(--primary-color);"></i>
+                <i class="pi pi-spin pi-spinner" style="font-size: 3rem; color: var(--primary-color)"></i>
                 <p class="sync-message-title">
                     {{ syncing ? '조합원 정보를 갱신하는 중...' : '조합원 목록을 불러오는 중...' }}
                 </p>
@@ -482,71 +481,23 @@ onMounted(async () => {
         <div class="card">
             <Toolbar class="mb-6">
                 <template #start>
-                    <Button
-                        label="전체조합원갱신"
-                        icon="pi pi-refresh"
-                        severity="success"
-                        raised
-                        class="mr-2"
-                        :disabled="syncing || loading"
-                        :loading="syncing"
-                        @click="syncAllKrews"
-                    />
-                    <Button
-                        label="법인별조합원갱신"
-                        icon="pi pi-building"
-                        severity="info"
-                        raised
-                        class="mr-2"
-                        :disabled="syncing || loading"
-                        @click="openSyncCorpDialog"
-                    />
-                    <Button
-                        label="법인별코나카드갱신"
-                        icon="pi pi-id-card"
-                        severity="warn"
-                        raised
-                        :disabled="syncing || loading"
-                        @click="openSyncKonacardCorpDialog"
-                    />
+                    <Button label="전체조합원갱신" icon="pi pi-refresh" severity="success" raised class="mr-2" :disabled="syncing || loading" :loading="syncing" @click="syncAllKrews" />
+                    <Button label="법인별조합원갱신" icon="pi pi-building" severity="info" raised class="mr-2" :disabled="syncing || loading" @click="openSyncCorpDialog" />
+                    <Button label="법인별코나카드갱신" icon="pi pi-id-card" severity="warn" raised :disabled="syncing || loading" @click="openSyncKonacardCorpDialog" />
                 </template>
 
                 <template #end>
-                    <Button
-                        label="Export"
-                        icon="pi pi-upload"
-                        severity="help"
-                        raised
-                        :disabled="syncing || loading"
-                        @click="exportCSV"
-                    />
+                    <Button label="Export" icon="pi pi-upload" severity="help" raised :disabled="syncing || loading" @click="exportCSV" />
                 </template>
             </Toolbar>
 
             <div class="mb-6">
-                <div class="flex items-center gap-3 mb-4" style="align-items: center;">
-                    <div class="font-semibold text-xl" style="line-height: 1; margin: 0;">Filtering</div>
+                <div class="flex items-center gap-3 mb-4" style="align-items: center">
+                    <div class="font-semibold text-xl" style="line-height: 1; margin: 0">Filtering</div>
 
-                    <Button
-                        label="Refresh"
-                        icon="pi pi-refresh"
-                        text
-                        severity="success"
-                        size="small"
-                        :loading="loading"
-                        :disabled="syncing || loading"
-                        @click="refreshKrews"
-                    />
+                    <Button label="Refresh" icon="pi pi-refresh" text severity="success" size="small" :loading="loading" :disabled="syncing || loading" @click="refreshKrews" />
 
-                    <Button
-                        label="Clear"
-                        icon="pi pi-filter-slash"
-                        text
-                        severity="secondary"
-                        size="small"
-                        :disabled="syncing || loading"
-                        @click="clearFilters"
-                    />
+                    <Button label="Clear" icon="pi pi-filter-slash" text severity="secondary" size="small" :disabled="syncing || loading" @click="clearFilters" />
                 </div>
 
                 <!-- 필터 입력 필드들 -->
@@ -554,18 +505,9 @@ onMounted(async () => {
                     <!-- 법인 필터 -->
                     <div class="col-span-12 md:col-span-4 lg:col-span-3">
                         <label for="corp-filter" class="block text-sm font-medium mb-2">법인</label>
-                        <Select
-                            id="corp-filter"
-                            v-model="selectedCorp"
-                            :options="corpList"
-                            placeholder="전체"
-                            showClear
-                            class="w-full"
-                            :style="{ height: '40px' }"
-                            :disabled="syncing || loading"
-                        >
+                        <Select id="corp-filter" v-model="selectedCorp" :options="corpList" placeholder="전체" showClear class="w-full" :style="{ height: '40px' }" :disabled="syncing || loading">
                             <template #value="slotProps">
-                                <div class="flex items-center" style="height: 100%;">
+                                <div class="flex items-center" style="height: 100%">
                                     <Tag v-if="slotProps.value" :value="slotProps.value" :severity="getCorpColor(slotProps.value)" />
                                     <span v-else>전체</span>
                                 </div>
@@ -579,33 +521,15 @@ onMounted(async () => {
                     <!-- CMS 상태 필터 -->
                     <div class="col-span-12 md:col-span-4 lg:col-span-3">
                         <label for="status-filter" class="block text-sm font-medium mb-2">CMS 상태</label>
-                        <Select
-                            id="status-filter"
-                            v-model="selectedStatus"
-                            :options="statusList"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="전체"
-                            showClear
-                            class="w-full"
-                            :style="{ height: '40px' }"
-                            :disabled="syncing || loading"
-                        >
+                        <Select id="status-filter" v-model="selectedStatus" :options="statusList" optionLabel="label" optionValue="value" placeholder="전체" showClear class="w-full" :style="{ height: '40px' }" :disabled="syncing || loading">
                             <template #value="slotProps">
-                                <div class="flex items-center" style="height: 100%;">
-                                    <Tag
-                                        v-if="slotProps.value"
-                                        :value="slotProps.value"
-                                        :severity="slotProps.value === '등록성공' ? 'success' : 'warn'"
-                                    />
+                                <div class="flex items-center" style="height: 100%">
+                                    <Tag v-if="slotProps.value" :value="slotProps.value" :severity="slotProps.value === '등록성공' ? 'success' : 'warn'" />
                                     <span v-else>전체</span>
                                 </div>
                             </template>
                             <template #option="slotProps">
-                                <Tag
-                                    :value="slotProps.option.label"
-                                    :severity="slotProps.option.value === '등록성공' ? 'success' : 'warn'"
-                                />
+                                <Tag :value="slotProps.option.label" :severity="slotProps.option.value === '등록성공' ? 'success' : 'warn'" />
                             </template>
                         </Select>
                     </div>
@@ -617,41 +541,16 @@ onMounted(async () => {
                             <InputIcon>
                                 <i class="pi pi-search" />
                             </InputIcon>
-                            <InputText
-                                id="keyword-search"
-                                v-model="filters['global'].value"
-                                placeholder="이름, LDAP, 법인, 조직도 검색..."
-                                class="w-full"
-                                :style="{ height: '40px' }"
-                                :disabled="syncing || loading"
-                            />
+                            <InputText id="keyword-search" v-model="filters['global'].value" placeholder="이름, LDAP, 법인, 조직도 검색..." class="w-full" :style="{ height: '40px' }" :disabled="syncing || loading" />
                         </IconField>
                     </div>
                 </div>
 
                 <!-- 필터 적용 상태 표시 -->
                 <div v-if="selectedCorp || selectedStatus || filters['global'].value" class="flex gap-2 mt-4">
-                    <Chip
-                        v-if="selectedCorp"
-                        :label="`법인: ${selectedCorp}`"
-                        icon="pi pi-building"
-                        removable
-                        @remove="selectedCorp = null"
-                    />
-                    <Chip
-                        v-if="selectedStatus"
-                        :label="`상태: ${selectedStatus}`"
-                        icon="pi pi-check-circle"
-                        removable
-                        @remove="selectedStatus = null"
-                    />
-                    <Chip
-                        v-if="filters['global'].value"
-                        :label="`검색: ${filters['global'].value}`"
-                        icon="pi pi-search"
-                        removable
-                        @remove="filters['global'].value = null"
-                    />
+                    <Chip v-if="selectedCorp" :label="`법인: ${selectedCorp}`" icon="pi pi-building" removable @remove="selectedCorp = null" />
+                    <Chip v-if="selectedStatus" :label="`상태: ${selectedStatus}`" icon="pi pi-check-circle" removable @remove="selectedStatus = null" />
+                    <Chip v-if="filters['global'].value" :label="`검색: ${filters['global'].value}`" icon="pi pi-search" removable @remove="filters['global'].value = null" />
                 </div>
             </div>
 
@@ -672,46 +571,26 @@ onMounted(async () => {
             >
                 <template #header>
                     <div class="flex flex-wrap gap-2 items-center justify-between">
-                        <div class="flex items-center gap-3" style="align-items: center;">
-                            <h4 style="margin: 0; padding: 0; line-height: 1;">조합원 관리</h4>
-                            <Button
-                                label="선택 해제"
-                                icon="pi pi-times"
-                                text
-                                severity="secondary"
-                                size="small"
-                                :disabled="syncing || loading"
-                                @click="deselectAll"
-                            />
+                        <div class="flex items-center gap-3" style="align-items: center">
+                            <h4 style="margin: 0; padding: 0; line-height: 1">조합원 관리</h4>
+                            <Button label="선택 해제" icon="pi pi-times" text severity="secondary" size="small" :disabled="syncing || loading" @click="deselectAll" />
                         </div>
                     </div>
                 </template>
 
                 <template #empty>
-                    <div class="text-center p-4">
-                        조합원 데이터가 없습니다.
-                    </div>
+                    <div class="text-center p-4">조합원 데이터가 없습니다.</div>
                 </template>
 
                 <Column :exportable="false" style="width: 3rem">
                     <template #header>
                         <div class="flex justify-center">
-                            <Checkbox
-                                :modelValue="isAllCurrentPageSelected"
-                                @update:modelValue="toggleCurrentPageSelection"
-                                :binary="true"
-                                :disabled="syncing || loading"
-                            />
+                            <Checkbox :modelValue="isAllCurrentPageSelected" @update:modelValue="toggleCurrentPageSelection" :binary="true" :disabled="syncing || loading" />
                         </div>
                     </template>
                     <template #body="slotProps">
                         <div class="flex justify-center">
-                            <Checkbox
-                                :modelValue="isRowSelected(slotProps.data)"
-                                @update:modelValue="toggleRowSelection(slotProps.data)"
-                                :binary="true"
-                                :disabled="syncing || loading"
-                            />
+                            <Checkbox :modelValue="isRowSelected(slotProps.data)" @update:modelValue="toggleRowSelection(slotProps.data)" :binary="true" :disabled="syncing || loading" />
                         </div>
                     </template>
                 </Column>
@@ -732,23 +611,13 @@ onMounted(async () => {
                 </Column>
                 <Column field="status" header="CMS 상태" sortable style="min-width: 10rem">
                     <template #body="slotProps">
-                        <Tag
-                            :value="slotProps.data.status"
-                            :severity="slotProps.data.status === '등록성공' ? 'success' : 'warn'"
-                        />
+                        <Tag :value="slotProps.data.status" :severity="slotProps.data.status === '등록성공' ? 'success' : 'warn'" />
                     </template>
                 </Column>
                 <Column :exportable="false" style="min-width: 8rem">
                     <template #body="slotProps">
                         <div class="flex justify-center">
-                            <Button
-                                icon="pi pi-eye"
-                                rounded
-                                raised
-                                severity="info"
-                                :disabled="syncing || loading"
-                                @click="viewKrew(slotProps.data)"
-                            />
+                            <Button icon="pi pi-eye" rounded raised severity="info" :disabled="syncing || loading" @click="viewKrew(slotProps.data)" />
                         </div>
                     </template>
                 </Column>
@@ -756,23 +625,10 @@ onMounted(async () => {
         </div>
 
         <!-- 법인별 조합원 갱신 Dialog -->
-        <Dialog
-            v-model:visible="syncCorpDialogVisible"
-            :style="{ width: '450px' }"
-            header="법인별 조합원 갱신"
-            :modal="true"
-            :closable="!syncing"
-        >
+        <Dialog v-model:visible="syncCorpDialogVisible" :style="{ width: '450px' }" header="법인별 조합원 갱신" :modal="true" :closable="!syncing">
             <div class="flex flex-col gap-4">
                 <label for="sync-corp" class="font-bold">법인 선택</label>
-                <Select
-                    id="sync-corp"
-                    v-model="selectedSyncCorp"
-                    :options="corpList"
-                    placeholder="법인을 선택하세요"
-                    class="w-full"
-                    :disabled="syncing"
-                >
+                <Select id="sync-corp" v-model="selectedSyncCorp" :options="corpList" placeholder="법인을 선택하세요" class="w-full" :disabled="syncing">
                     <template #value="slotProps">
                         <Tag v-if="slotProps.value" :value="slotProps.value" :severity="getCorpColor(slotProps.value)" />
                         <span v-else>법인을 선택하세요</span>
@@ -784,44 +640,16 @@ onMounted(async () => {
             </div>
 
             <template #footer>
-                <Button
-                    label="취소"
-                    icon="pi pi-times"
-                    outlined
-                    severity="secondary"
-                    :disabled="syncing"
-                    @click="syncCorpDialogVisible = false"
-                />
-                <Button
-                    label="갱신"
-                    icon="pi pi-check"
-                    raised
-                    severity="success"
-                    :loading="syncing"
-                    :disabled="syncing"
-                    @click="syncCorpKrews"
-                />
+                <Button label="취소" icon="pi pi-times" outlined severity="secondary" :disabled="syncing" @click="syncCorpDialogVisible = false" />
+                <Button label="갱신" icon="pi pi-check" raised severity="success" :loading="syncing" :disabled="syncing" @click="syncCorpKrews" />
             </template>
         </Dialog>
 
         <!-- 법인별 코나카드 갱신 Dialog -->
-        <Dialog
-            v-model:visible="syncKonacardCorpDialogVisible"
-            :style="{ width: '450px' }"
-            header="법인별 코나카드 갱신"
-            :modal="true"
-            :closable="!syncing"
-        >
+        <Dialog v-model:visible="syncKonacardCorpDialogVisible" :style="{ width: '450px' }" header="법인별 코나카드 갱신" :modal="true" :closable="!syncing">
             <div class="flex flex-col gap-4">
                 <label for="sync-konacard-corp" class="font-bold">법인 선택</label>
-                <Select
-                    id="sync-konacard-corp"
-                    v-model="selectedSyncCorp"
-                    :options="corpList"
-                    placeholder="법인을 선택하세요"
-                    class="w-full"
-                    :disabled="syncing"
-                >
+                <Select id="sync-konacard-corp" v-model="selectedSyncCorp" :options="corpList" placeholder="법인을 선택하세요" class="w-full" :disabled="syncing">
                     <template #value="slotProps">
                         <Tag v-if="slotProps.value" :value="slotProps.value" :severity="getCorpColor(slotProps.value)" />
                         <span v-else>법인을 선택하세요</span>
@@ -833,34 +661,13 @@ onMounted(async () => {
             </div>
 
             <template #footer>
-                <Button
-                    label="취소"
-                    icon="pi pi-times"
-                    outlined
-                    severity="secondary"
-                    :disabled="syncing"
-                    @click="syncKonacardCorpDialogVisible = false"
-                />
-                <Button
-                    label="갱신"
-                    icon="pi pi-check"
-                    raised
-                    severity="warn"
-                    :loading="syncing"
-                    :disabled="syncing"
-                    @click="syncCorpKonacards"
-                />
+                <Button label="취소" icon="pi pi-times" outlined severity="secondary" :disabled="syncing" @click="syncKonacardCorpDialogVisible = false" />
+                <Button label="갱신" icon="pi pi-check" raised severity="warn" :loading="syncing" :disabled="syncing" @click="syncCorpKonacards" />
             </template>
         </Dialog>
 
         <!-- ✅ 조합원 상세 정보 Dialog -->
-        <Dialog
-            v-model:visible="krewDialog"
-            :style="{ width: '700px' }"
-            header="조합원 상세 정보"
-            :modal="true"
-            class="krew-detail-dialog"
-        >
+        <Dialog v-model:visible="krewDialog" :style="{ width: '700px' }" header="조합원 상세 정보" :modal="true" class="krew-detail-dialog">
             <div class="flex flex-col gap-6">
                 <!-- 기본 정보 섹션 -->
                 <div class="detail-section">
@@ -895,12 +702,7 @@ onMounted(async () => {
                         <div class="col-span-6">
                             <label class="detail-label">법인</label>
                             <div class="mt-2">
-                                <Tag
-                                    v-if="selectedKrew.corp"
-                                    :value="selectedKrew.corp"
-                                    :severity="getCorpColor(selectedKrew.corp)"
-                                    class="detail-tag"
-                                />
+                                <Tag v-if="selectedKrew.corp" :value="selectedKrew.corp" :severity="getCorpColor(selectedKrew.corp)" class="detail-tag" />
                                 <span v-else class="detail-value-empty">미지정</span>
                             </div>
                         </div>
@@ -922,24 +724,14 @@ onMounted(async () => {
                         <div class="col-span-6">
                             <label class="detail-label">체크오프 대상</label>
                             <div class="mt-2">
-                                <Tag
-                                    v-if="selectedKrew.isCheckoff"
-                                    :value="selectedKrew.isCheckoff"
-                                    :severity="selectedKrew.isCheckoff === '체크오프 대상' ? 'success' : 'secondary'"
-                                    class="detail-tag"
-                                />
+                                <Tag v-if="selectedKrew.isCheckoff" :value="selectedKrew.isCheckoff" :severity="selectedKrew.isCheckoff === '체크오프 대상' ? 'success' : 'secondary'" class="detail-tag" />
                                 <Tag v-else value="정보 없음" severity="secondary" class="detail-tag" />
                             </div>
                         </div>
                         <div class="col-span-6">
                             <label class="detail-label">CMS 상태</label>
                             <div class="mt-2">
-                                <Tag
-                                    v-if="selectedKrew.status"
-                                    :value="selectedKrew.status"
-                                    :severity="selectedKrew.status === '등록성공' ? 'success' : 'warn'"
-                                    class="detail-tag"
-                                />
+                                <Tag v-if="selectedKrew.status" :value="selectedKrew.status" :severity="selectedKrew.status === '등록성공' ? 'success' : 'warn'" class="detail-tag" />
                                 <span v-else class="detail-value-empty">미등록</span>
                             </div>
                         </div>
@@ -953,12 +745,7 @@ onMounted(async () => {
                         <div class="col-span-6">
                             <label class="detail-label">조합원방 참여여부</label>
                             <div class="mt-2">
-                                <Tag
-                                    v-if="selectedKrew.chatRoomJoined"
-                                    :value="selectedKrew.chatRoomJoined"
-                                    :severity="selectedKrew.chatRoomJoined === 'Y' || selectedKrew.chatRoomJoined === '참여' ? 'success' : 'secondary'"
-                                    class="detail-tag"
-                                />
+                                <Tag v-if="selectedKrew.chatRoomJoined" :value="selectedKrew.chatRoomJoined" :severity="selectedKrew.chatRoomJoined === 'Y' || selectedKrew.chatRoomJoined === '참여' ? 'success' : 'secondary'" class="detail-tag" />
                                 <Tag v-else value="정보 없음" severity="secondary" class="detail-tag" />
                             </div>
                         </div>
@@ -1012,13 +799,7 @@ onMounted(async () => {
                     <div>
                         <label class="detail-label">조직도</label>
                         <div v-if="selectedKrew.orgChart && selectedKrew.orgChart.length > 0" class="flex flex-wrap gap-2 mt-2">
-                            <Tag
-                                v-for="(org, index) in selectedKrew.orgChart"
-                                :key="index"
-                                :value="org"
-                                severity="secondary"
-                                class="detail-tag"
-                            />
+                            <Tag v-for="(org, index) in selectedKrew.orgChart" :key="index" :value="org" severity="secondary" class="detail-tag" />
                         </div>
                         <div v-else class="detail-value-empty mt-2">조직도 정보 없음</div>
                     </div>
@@ -1308,7 +1089,7 @@ onMounted(async () => {
     font-size: 1.125rem;
     font-weight: 700;
     background: #fffacd;
-    color: #B8860B !important;
+    color: #b8860b !important;
     border-color: #ffe87c;
 }
 
@@ -1370,7 +1151,7 @@ onMounted(async () => {
 /* ✅ 다크모드에서도 진한 황금색 적용 (#ffe87c → #DAA520) */
 .app-dark .name-highlight {
     background: #4a4520 !important;
-    color: #DAA520 !important;
+    color: #daa520 !important;
     border-color: #6a6530 !important;
 }
 </style>

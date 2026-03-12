@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 
-const props = defineProps({
+defineProps({
     stats: {
         type: Object,
         required: true
@@ -35,7 +35,7 @@ function showCorpDialog() {
                 </div>
             </div>
             <div class="flex items-center h-8">
-                <span class="text-primary font-medium">{{ formatNumber(stats.newKrews) }}명 &nbsp</span>
+                <span class="text-primary font-medium">{{ formatNumber(stats.newKrews) }}명 &nbsp;</span>
                 <span class="text-muted-color">신규 등록</span>
             </div>
         </div>
@@ -56,18 +56,10 @@ function showCorpDialog() {
                 </div>
             </div>
             <div class="flex items-center h-8">
-                <Button
-                    label="법인 목록 보기"
-                    icon="pi pi-eye"
-                    text
-                    size="small"
-                    @click="showCorpDialog"
-                    class="p-0 h-full"
-                />
+                <Button label="법인 목록 보기" icon="pi pi-eye" text size="small" @click="showCorpDialog" class="p-0 h-full" />
             </div>
         </div>
     </div>
-
 
     <!-- 코나카드 등록 -->
     <div class="col-span-12 lg:col-span-6 xl:col-span-3">
@@ -84,7 +76,7 @@ function showCorpDialog() {
                 </div>
             </div>
             <div class="flex items-center h-8">
-                <span class="text-primary font-medium">{{ stats.konacardRate }}% &nbsp</span>
+                <span class="text-primary font-medium">{{ stats.konacardRate }}% &nbsp;</span>
                 <span class="text-muted-color">등록률</span>
             </div>
         </div>
@@ -105,25 +97,16 @@ function showCorpDialog() {
                 </div>
             </div>
             <div class="flex items-center h-8">
-                <span class="text-primary font-medium">{{ stats.activeRate }}% &nbsp</span>
+                <span class="text-primary font-medium">{{ stats.activeRate }}% &nbsp;</span>
                 <span class="text-muted-color">등록률</span>
             </div>
         </div>
     </div>
 
     <!-- 법인 목록 다이얼로그 -->
-    <Dialog
-        v-model:visible="corpDialog"
-        :style="{ width: '450px' }"
-        header="전체 법인 목록"
-        :modal="true"
-    >
+    <Dialog v-model:visible="corpDialog" :style="{ width: '450px' }" header="전체 법인 목록" :modal="true">
         <div class="flex flex-col gap-3">
-            <div
-                v-for="(corp, index) in stats.corpNames"
-                :key="index"
-                class="flex items-center justify-between p-3 border border-surface-200 rounded-lg"
-            >
+            <div v-for="(corp, index) in stats.corpNames" :key="index" class="flex items-center justify-between p-3 border border-surface-200 rounded-lg">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center justify-center bg-primary-100 dark:bg-primary-400/10 rounded-full" style="width: 2.5rem; height: 2.5rem">
                         <i class="pi pi-building text-primary-500"></i>
@@ -135,12 +118,7 @@ function showCorpDialog() {
         </div>
 
         <template #footer>
-            <Button
-                label="닫기"
-                icon="pi pi-times"
-                text
-                @click="corpDialog = false"
-            />
+            <Button label="닫기" icon="pi pi-times" text @click="corpDialog = false" />
         </template>
     </Dialog>
 </template>

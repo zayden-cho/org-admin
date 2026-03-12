@@ -1,9 +1,10 @@
 <script setup>
 import { onBeforeUnmount, ref, watch } from 'vue';
+
 import { useRoute } from 'vue-router';
 
-import { useLayout } from '@/layout/composables/layout';
 import AppMenu from '@/layout/AppMenu.vue';
+import { useLayout } from '@/layout/composables/layout';
 
 const { layoutState, isDesktop, hasOpenOverlay } = useLayout();
 const route = useRoute();

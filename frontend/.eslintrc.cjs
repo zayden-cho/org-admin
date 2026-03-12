@@ -9,6 +9,7 @@ module.exports = {
     parserOptions: {
         ecmaVersion: 'latest'
     },
+    plugins: ['import'],
     rules: {
         'vue/multi-word-component-names': 'off',
         'vue/no-reserved-component-names': 'off',
@@ -16,6 +17,30 @@ module.exports = {
             'error',
             {
                 order: ['script', 'template', 'style']
+            }
+        ],
+        'import/order': [
+            'error',
+            {
+                groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+                pathGroups: [
+                    {
+                        pattern: 'vue',
+                        group: 'external',
+                        position: 'before'
+                    },
+                    {
+                        pattern: '@/**',
+                        group: 'internal',
+                        position: 'after'
+                    }
+                ],
+                pathGroupsExcludedImportTypes: ['builtin'],
+                alphabetize: {
+                    order: 'asc',
+                    caseInsensitive: true
+                },
+                'newlines-between': 'always'
             }
         ]
     }

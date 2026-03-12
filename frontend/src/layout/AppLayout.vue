@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue';
 
-import { useLayout } from '@/layout/composables/layout';
+import AppTopbar from '@/layout//AppTopbar.vue';
 import AppFooter from '@/layout/AppFooter.vue';
 import AppSidebar from '@/layout/AppSidebar.vue';
-import AppTopbar from '@/layout//AppTopbar.vue';
+import { useLayout } from '@/layout/composables/layout';
 
 const { layoutConfig, layoutState, hideMobileMenu } = useLayout();
 

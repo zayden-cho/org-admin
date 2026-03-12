@@ -1,12 +1,9 @@
-import { google, calendar_v3 } from 'googleapis';
 import path from 'path';
 
-import { GOOGLE_CREDENTIALS_PATH } from '@/core/config/google.config';
+import { google, calendar_v3 } from 'googleapis';
 
-export interface CalendarConfig {
-    calendarId: string;
-    credentialsPath?: string;
-}
+import { GOOGLE_CREDENTIALS_PATH } from '@/core/config/google.config';
+import { CalendarConfig } from '@/core/types/calendar.types';
 
 export class CalendarRepository {
     protected calendar: calendar_v3.Calendar;

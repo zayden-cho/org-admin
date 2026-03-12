@@ -1,5 +1,6 @@
 import { Context } from 'hono';
 
+import { getErrorMessage } from '@/core/types/sheets.types';
 import { syncService } from '@/features/sync/sync.service';
 
 export class SyncController {
@@ -12,12 +13,12 @@ export class SyncController {
             const result = await syncService.syncAllKrews();
 
             return c.json(result);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Sync all krews error:', error);
 
             return c.json({
                 success: false,
-                message: `전체 갱신 실패: ${error.message}`,
+                message: `전체 갱신 실패: ${getErrorMessage(error)}`,
             }, 500);
         }
     }
@@ -40,12 +41,12 @@ export class SyncController {
             const result = await syncService.syncCorpKrews(corp);
 
             return c.json(result);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Sync corp krews error:', error);
 
             return c.json({
                 success: false,
-                message: `법인 갱신 실패: ${error.message}`,
+                message: `법인 갱신 실패: ${getErrorMessage(error)}`,
             }, 500);
         }
     }
@@ -68,15 +69,16 @@ export class SyncController {
             const result = await syncService.syncCorpKonacards(corp);
 
             return c.json(result);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Sync corp konacards error:', error);
 
             return c.json({
                 success: false,
-                message: `코나카드 갱신 실패: ${error.message}`,
+                message: `코나카드 갱신 실패: ${getErrorMessage(error)}`,
             }, 500);
         }
     }
 }
 
 export const syncController = new SyncController();
+

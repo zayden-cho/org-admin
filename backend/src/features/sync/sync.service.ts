@@ -1,3 +1,4 @@
+import { SheetData, SheetRow, cellToString, isValidSheetData, isValidSheetRow, getErrorMessage } from '@/core/types/sheets.types';
 import { SyncRepository } from '@/features/sync/sync.repository';
 import { KonacardData, SourceRow, SheetItem } from '@/features/sync/sync.types';
 
@@ -17,11 +18,11 @@ export class SyncService {
                 message: '전체 갱신이 완료되었습니다.',
                 count: result.totalKrews
             };
-        } catch (error: any) {
+        } catch (error) {
             console.error('전체 갱신 오류:', error);
             return {
                 success: false,
-                message: `오류: ${error.message}`,
+                message: `오류: ${getErrorMessage(error)}`,
             };
         }
     }
@@ -39,11 +40,11 @@ export class SyncService {
                 message: `"${corp}" 갱신이 완료되었습니다.`,
                 count: result.totalKrews
             };
-        } catch (error: any) {
+        } catch (error) {
             console.error('법인 갱신 오류:', error);
             return {
                 success: false,
-                message: `오류: ${error.message}`,
+                message: `오류: ${getErrorMessage(error)}`,
             };
         }
     }
@@ -59,11 +60,11 @@ export class SyncService {
                 success: true,
                 message: `"${corp}" 코나카드 갱신이 완료되었습니다.`,
             };
-        } catch (error: any) {
+        } catch (error) {
             console.error('코나카드 갱신 오류:', error);
             return {
                 success: false,
-                message: `오류: ${error.message}`,
+                message: `오류: ${getErrorMessage(error)}`,
             };
         }
     }
@@ -92,7 +93,7 @@ export class SyncService {
             "코나카드",
             "코나카드 앱등록여부",
             "직책",
-            "조직도"              
+            "조직도"
         ];
 
         const MAX_SHEET_NAME_LEN = 100;
@@ -216,36 +217,32 @@ export class SyncService {
     ): Promise<void> {
         const exists = await this.repository.targetSheetExists(sheetName);
 
-        // ========================================
-        // 신규 시트 생성 (배치로 한 번에!)
-        // ========================================
         if (!exists) {
             console.log(`🆕 신규 시트 생성: ${sheetName}`);
 
-            const dataRows: any[][] = [];
+            const dataRows: SheetData = [];
             for (let i = 0; i < sourceDataArray.length; i++) {
                 const data = sourceDataArray[i];
                 const corpId = `kuc-${i + 1}`;
-                const krewId = `ku-${data.sourceId}`;
+                const krewId = `ku-${cellToString(data.sourceId)}`;
 
                 dataRows.push([
-                    corpId,              // 1 - corpId
-                    krewId,              // 2 - krewId
-                    data.corp,           // 3 - 법인
-                    data.name,           // 4 - 한글명
-                    data.ldap,           // 5 - 영문명
-                    data.phoneNumber,    // 6 - 연락처
-                    data.checkoffStatus, // 7 - 체크오프 대상
-                    data.cmsStatus,      // 8 - CMS 상태
-                    '',                  // 9 - 가입월
-                    '',                  // 10 - 코나카드
-                    '',                  // 11 - 코나카드 앱등록여부
-                    '',                  // 12 - 직책
-                    ''                   // 13 - 조직도
+                    corpId,
+                    krewId,
+                    cellToString(data.corp),
+                    cellToString(data.name),
+                    cellToString(data.ldap),
+                    cellToString(data.phoneNumber),
+                    cellToString(data.checkoffStatus),
+                    cellToString(data.cmsStatus),
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
                 ]);
             }
 
-            // ✅ 한 번에 생성 + 초기화 (Write 요청 3회만!)
             await this.repository.createAndInitializeTargetSheet(
                 sheetName,
                 baseHeaders,
@@ -256,16 +253,13 @@ export class SyncService {
             return;
         }
 
-        // ========================================
-        // 기존 시트 업데이트
-        // ========================================
         const existingData = await this.repository.getTargetSheetData(sheetName);
 
         // 빈 시트 처리
         if (existingData.length < 1) {
             console.log(`📝 빈 시트 초기화: ${sheetName}`);
 
-            const dataRows: any[][] = [];
+            const dataRows: SheetData = [];
             for (let i = 0; i < sourceDataArray.length; i++) {
                 const data = sourceDataArray[i];
                 const corpId = `kuc-${i + 1}`;
@@ -274,21 +268,20 @@ export class SyncService {
                 dataRows.push([
                     corpId,
                     krewId,
-                    data.corp,
-                    data.name,
-                    data.ldap,
-                    data.phoneNumber,
-                    data.checkoffStatus,
-                    data.cmsStatus,
-                    '',  // 가입월
-                    '',  // 코나카드
-                    '',  // 코나카드 앱등록여부
-                    '',  // 직책
-                    ''   // 조직도
+                    cellToString(data.corp),
+                    cellToString(data.name),
+                    cellToString(data.ldap),
+                    cellToString(data.phoneNumber),
+                    cellToString(data.checkoffStatus),
+                    cellToString(data.cmsStatus),
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
                 ]);
             }
 
-            // ✅ 빈 시트도 배치로 한 번에
             await this.repository.createAndInitializeTargetSheet(
                 sheetName,
                 baseHeaders,
@@ -315,56 +308,80 @@ export class SyncService {
             throw new Error(`"${sheetName}" 시트에서 "영문명" 컬럼을 찾을 수 없습니다.`);
         }
 
-        // LDAP으로 기존 데이터 매핑
-        const existingMap = new Map<string, any[]>();
+        const existingMap = new Map<string, SheetRow>();
         for (let i = 1; i < existingData.length; i++) {
-            const ldap = String(existingData[i][colIndex['영문명']] || '').trim();
+            const ldap = cellToString(existingData[i][colIndex['영문명']]).trim();
             if (ldap) {
                 existingMap.set(ldap, existingData[i]);
             }
         }
 
-        const finalData: any[][] = [];
+        const finalData: SheetData = [];
 
         for (let i = 0; i < sourceDataArray.length; i++) {
             const data = sourceDataArray[i];
-            const ldap = String(data.ldap || '').trim();
+            const ldap = cellToString(data.ldap).trim();
 
             const corpId = `kuc-${i + 1}`;
-            const krewId = `ku-${data.sourceId}`;
+            const krewId = `ku-${cellToString(data.sourceId)}`;
 
-            let rowData: any[];
+            let rowData: SheetRow;
 
-            if (ldap && existingMap.has(ldap)) {
-                // ✅ 기존 LDAP: 전체 복사 후 8개 컬럼만 업데이트
-                const oldRow = existingMap.get(ldap)!;
+            const oldRow = existingMap.get(ldap);
+            if (ldap && oldRow && isValidSheetRow(oldRow)) {
                 rowData = [...oldRow];
 
-                // 조합원갱신 8개만 업데이트 (나머지 5개 보존)
-                if (colIndex['corpId'] !== undefined) rowData[colIndex['corpId']] = corpId;
-                if (colIndex['krewId'] !== undefined) rowData[colIndex['krewId']] = krewId;
-                if (colIndex['법인'] !== undefined) rowData[colIndex['법인']] = data.corp;
-                if (colIndex['한글명'] !== undefined) rowData[colIndex['한글명']] = data.name;
-                if (colIndex['영문명'] !== undefined) rowData[colIndex['영문명']] = data.ldap;
-                if (colIndex['연락처'] !== undefined) rowData[colIndex['연락처']] = data.phoneNumber;
-                if (colIndex['체크오프 대상'] !== undefined) rowData[colIndex['체크오프 대상']] = data.checkoffStatus;
-                if (colIndex['CMS 상태'] !== undefined) rowData[colIndex['CMS 상태']] = data.cmsStatus;
-
-                // 가입월, 코나카드, 코나카드 앱등록여부, 직책, 조직도는 보존됨!
+                if (colIndex['corpId'] !== undefined) {
+                    rowData[colIndex['corpId']] = corpId;
+                }
+                if (colIndex['krewId'] !== undefined) {
+                    rowData[colIndex['krewId']] = krewId;
+                }
+                if (colIndex['법인'] !== undefined) {
+                    rowData[colIndex['법인']] = cellToString(data.corp);
+                }
+                if (colIndex['한글명'] !== undefined) {
+                    rowData[colIndex['한글명']] = cellToString(data.name);
+                }
+                if (colIndex['영문명'] !== undefined) {
+                    rowData[colIndex['영문명']] = cellToString(data.ldap);
+                }
+                if (colIndex['연락처'] !== undefined) {
+                    rowData[colIndex['연락처']] = cellToString(data.phoneNumber);
+                }
+                if (colIndex['체크오프 대상'] !== undefined) {
+                    rowData[colIndex['체크오프 대상']] = cellToString(data.checkoffStatus);
+                }
+                if (colIndex['CMS 상태'] !== undefined) {
+                    rowData[colIndex['CMS 상태']] = cellToString(data.cmsStatus);
+                }
             } else {
-                // ✅ 신규 LDAP: 13개 빈 배열 생성 후 8개만 채움
                 rowData = new Array(baseHeaders.length).fill('');
 
-                if (colIndex['corpId'] !== undefined) rowData[colIndex['corpId']] = corpId;
-                if (colIndex['krewId'] !== undefined) rowData[colIndex['krewId']] = krewId;
-                if (colIndex['법인'] !== undefined) rowData[colIndex['법인']] = data.corp;
-                if (colIndex['한글명'] !== undefined) rowData[colIndex['한글명']] = data.name;
-                if (colIndex['영문명'] !== undefined) rowData[colIndex['영문명']] = data.ldap;
-                if (colIndex['연락처'] !== undefined) rowData[colIndex['연락처']] = data.phoneNumber;
-                if (colIndex['체크오프 대상'] !== undefined) rowData[colIndex['체크오프 대상']] = data.checkoffStatus;
-                if (colIndex['CMS 상태'] !== undefined) rowData[colIndex['CMS 상태']] = data.cmsStatus;
-
-                // 나머지 5개는 빈 문자열로 초기화됨
+                if (colIndex['corpId'] !== undefined) {
+                    rowData[colIndex['corpId']] = corpId;
+                }
+                if (colIndex['krewId'] !== undefined) {
+                    rowData[colIndex['krewId']] = krewId;
+                }
+                if (colIndex['법인'] !== undefined) {
+                    rowData[colIndex['법인']] = cellToString(data.corp);
+                }
+                if (colIndex['한글명'] !== undefined) {
+                    rowData[colIndex['한글명']] = cellToString(data.name);
+                }
+                if (colIndex['영문명'] !== undefined) {
+                    rowData[colIndex['영문명']] = cellToString(data.ldap);
+                }
+                if (colIndex['연락처'] !== undefined) {
+                    rowData[colIndex['연락처']] = cellToString(data.phoneNumber);
+                }
+                if (colIndex['체크오프 대상'] !== undefined) {
+                    rowData[colIndex['체크오프 대상']] = cellToString(data.checkoffStatus);
+                }
+                if (colIndex['CMS 상태'] !== undefined) {
+                    rowData[colIndex['CMS 상태']] = cellToString(data.cmsStatus);
+                }
             }
 
             finalData.push(rowData);
@@ -479,8 +496,13 @@ export class SyncService {
         sheetName: string,
         empMap: Map<string, KonacardData>
     ): Promise<number> {
-        // ✅ this.repository.getTargetSheetData 사용
+
         const data = await this.repository.getTargetSheetData(sheetName);
+
+        if (!isValidSheetData(data)) {
+            console.error('Invalid sheet data format');
+            throw new Error('시트 데이터 형식이 올바르지 않습니다');
+        }
 
         if (data.length < 2) {
             return 0;
@@ -500,14 +522,12 @@ export class SyncService {
         if (konacardCol === -1) {
             konacardCol = headers.length;
 
-            // ✅ this.repository.updateTargetSheetData 사용
             await this.repository.updateTargetSheetData(
                 sheetName,
                 `${this.columnToLetter(konacardCol + 1)}1`,
                 [['코나카드']]
             );
 
-            // ✅ this.repository.formatTargetHeaderRow 사용
             await this.repository.formatTargetHeaderRow(sheetName);
 
             console.log(`📝 "${sheetName}" 시트에 "코나카드" 컬럼 추가`);
@@ -516,14 +536,12 @@ export class SyncService {
         if (appRegisteredCol === -1) {
             appRegisteredCol = konacardCol === headers.length ? konacardCol + 1 : headers.length;
 
-            // ✅ this.repository.updateTargetSheetData 사용
             await this.repository.updateTargetSheetData(
                 sheetName,
                 `${this.columnToLetter(appRegisteredCol + 1)}1`,
                 [['코나카드 앱등록여부']]
             );
 
-            // ✅ this.repository.formatTargetHeaderRow 사용
             await this.repository.formatTargetHeaderRow(sheetName);
 
             console.log(`📝 "${sheetName}" 시트에 "코나카드 앱등록여부" 컬럼 추가`);
@@ -549,7 +567,7 @@ export class SyncService {
         }
 
         if (updates.length > 0) {
-            const batchUpdates: Array<{ range: string; values: any[][] }> = [];
+            const batchUpdates: Array<{ range: string; values: SheetData }> = [];
 
             for (const update of updates) {
                 // 코나카드 번호
@@ -566,10 +584,8 @@ export class SyncService {
             }
 
             if (batchUpdates.length > 200) {
-                // ✅ this.repository.batchUpdateTargetWithChunks 사용
                 await this.repository.batchUpdateTargetWithChunks(sheetName, batchUpdates, 100);
             } else {
-                // ✅ this.repository.batchUpdateTargetSheet 사용
                 await this.repository.batchUpdateTargetSheet(sheetName, batchUpdates);
             }
 
@@ -583,7 +599,7 @@ export class SyncService {
 
     private formatSheetName(name: string, maxLen: number): string {
         let sheetName = String(name).trim();
-        sheetName = sheetName.replace(/[:\\/\?\*\[\]]/g, " ");
+        sheetName = sheetName.replace(/[:\\/?*[\]]/g, " ");
         sheetName = sheetName.replace(/\s+/g, " ").trim();
 
         if (!sheetName) {

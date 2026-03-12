@@ -9,14 +9,15 @@ node_modules/
 # ========================================
 # Environment Variables
 # ========================================
-# 기본 환경변수 파일 (민감 정보 포함 가능)
+# 모든 환경 파일 (실제 값 포함)
 .env
 .env.local
+.env.development
+.env.production
+.env.test
 
-# 개인 환경별 설정 (로컬 오버라이드)
-.env.development.local
-.env.production.local
-.env.test.local
+# 로컬 오버라이드
+.env.*.local
 
 # ========================================
 # Credentials & Secrets

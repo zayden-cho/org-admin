@@ -1,5 +1,6 @@
 import { GOOGLE_SPREADSHEET_IDS } from '@/core/config/google.config';
 import { SheetsRepository } from '@/core/repositories/sheets.repository';
+import { SheetData } from '@/core/types/sheets.types';
 
 export class SyncRepository {
     private sourceRepository: SheetsRepository;
@@ -24,7 +25,7 @@ export class SyncRepository {
     // Source (원본) 관련
     // ========================================
 
-    async getSourceSheetData(sheetName: string): Promise<any[][]> {
+    async getSourceSheetData(sheetName: string): Promise<SheetData> {
         return this.sourceRepository.getSheetData(sheetName);
     }
 
@@ -40,14 +41,14 @@ export class SyncRepository {
         return this.targetRepository.createSheet(sheetName);
     }
 
-    async getTargetSheetData(sheetName: string): Promise<any[][]> {
+    async getTargetSheetData(sheetName: string): Promise<SheetData> {
         return this.targetRepository.getSheetData(sheetName);
     }
 
     async updateTargetSheetData(
         sheetName: string,
         range: string,
-        values: any[][]
+        values: SheetData
     ): Promise<void> {
         return this.targetRepository.updateSheetData(sheetName, range, values);
     }
@@ -58,7 +59,7 @@ export class SyncRepository {
 
     async batchUpdateTargetSheet(
         sheetName: string,
-        updates: Array<{ range: string; values: any[][] }>
+        updates: Array<{ range: string; values: SheetData }>
     ): Promise<void> {
         return this.targetRepository.batchUpdateSheetData(sheetName, updates);
     }
@@ -83,7 +84,7 @@ export class SyncRepository {
     // Konacard 관련
     // ========================================
 
-    async getKonacardSheetData(sheetName: string): Promise<any[][]> {
+    async getKonacardSheetData(sheetName: string): Promise<SheetData> {
         return this.konacardRepository.getSheetData(sheetName);
     }
 
@@ -93,7 +94,7 @@ export class SyncRepository {
 
     async batchUpdateTargetWithChunks(
         sheetName: string,
-        updates: Array<{ range: string; values: any[][] }>,
+        updates: Array<{ range: string; values: SheetData }>,
         chunkSize: number = 100
     ): Promise<void> {
         return this.targetRepository.batchUpdateWithChunks(sheetName, updates, chunkSize);
@@ -105,7 +106,7 @@ export class SyncRepository {
     async createAndInitializeTargetSheet(
         sheetName: string,
         headers: string[],
-        dataRows: any[][]
+        dataRows: SheetData
     ): Promise<void> {
         return this.targetRepository.createAndInitializeSheet(sheetName, headers, dataRows);
     }

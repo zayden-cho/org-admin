@@ -1,9 +1,10 @@
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
+
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
+import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
@@ -42,9 +43,13 @@ const weekEventsDialog = ref(false);
 const weekEventsTitle = ref('');
 const weekEventsList = ref([]);
 
-watch(() => props.events, (newEvents) => {
-    calendarOptions.value.events = newEvents;
-}, { immediate: true, deep: true });
+watch(
+    () => props.events,
+    (newEvents) => {
+        calendarOptions.value.events = newEvents;
+    },
+    { immediate: true, deep: true }
+);
 
 function handleEventClick(clickInfo) {
     const event = clickInfo.event;
@@ -69,7 +74,7 @@ const thisWeekEvents = computed(() => {
     endOfWeek.setDate(startOfWeek.getDate() + 6);
     endOfWeek.setHours(23, 59, 59, 999);
 
-    return props.events.filter(event => {
+    return props.events.filter((event) => {
         const eventDate = new Date(event.start);
         return eventDate >= startOfWeek && eventDate <= endOfWeek;
     });
@@ -85,7 +90,7 @@ const nextWeekEvents = computed(() => {
     endOfNextWeek.setDate(startOfNextWeek.getDate() + 6);
     endOfNextWeek.setHours(23, 59, 59, 999);
 
-    return props.events.filter(event => {
+    return props.events.filter((event) => {
         const eventDate = new Date(event.start);
         return eventDate >= startOfNextWeek && eventDate <= endOfNextWeek;
     });
@@ -112,60 +117,24 @@ function showMoreEvents(type) {
                 <div>
                     <div class="text-xs text-muted-color font-semibold mb-2">금주 일정</div>
                     <div class="flex flex-col gap-1">
-                        <div
-                            v-if="thisWeekEvents.length === 0"
-                            class="text-sm text-muted-color"
-                        >
-                            일정 없음
-                        </div>
-                        <div
-                            v-for="event in thisWeekEvents.slice(0, 3)"
-                            :key="event.id"
-                            class="text-sm flex items-center gap-2"
-                        >
-                            <div
-                                class="w-2 h-2 rounded-full flex-shrink-0"
-                                :style="{ backgroundColor: event.backgroundColor }"
-                            ></div>
+                        <div v-if="thisWeekEvents.length === 0" class="text-sm text-muted-color">일정 없음</div>
+                        <div v-for="event in thisWeekEvents.slice(0, 3)" :key="event.id" class="text-sm flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: event.backgroundColor }"></div>
                             <span class="truncate">{{ event.title }}</span>
                         </div>
-                        <button
-                            v-if="thisWeekEvents.length > 3"
-                            @click="showMoreEvents('thisWeek')"
-                            class="text-xs text-primary cursor-pointer hover:underline text-left"
-                        >
-                            +{{ thisWeekEvents.length - 3 }}개 더보기
-                        </button>
+                        <button v-if="thisWeekEvents.length > 3" @click="showMoreEvents('thisWeek')" class="text-xs text-primary cursor-pointer hover:underline text-left">+{{ thisWeekEvents.length - 3 }}개 더보기</button>
                     </div>
                 </div>
 
                 <div>
                     <div class="text-xs text-muted-color font-semibold mb-2">차주 일정</div>
                     <div class="flex flex-col gap-1">
-                        <div
-                            v-if="nextWeekEvents.length === 0"
-                            class="text-sm text-muted-color"
-                        >
-                            일정 없음
-                        </div>
-                        <div
-                            v-for="event in nextWeekEvents.slice(0, 3)"
-                            :key="event.id"
-                            class="text-sm flex items-center gap-2"
-                        >
-                            <div
-                                class="w-2 h-2 rounded-full flex-shrink-0"
-                                :style="{ backgroundColor: event.backgroundColor }"
-                            ></div>
+                        <div v-if="nextWeekEvents.length === 0" class="text-sm text-muted-color">일정 없음</div>
+                        <div v-for="event in nextWeekEvents.slice(0, 3)" :key="event.id" class="text-sm flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: event.backgroundColor }"></div>
                             <span class="truncate">{{ event.title }}</span>
                         </div>
-                        <button
-                            v-if="nextWeekEvents.length > 3"
-                            @click="showMoreEvents('nextWeek')"
-                            class="text-xs text-primary cursor-pointer hover:underline text-left"
-                        >
-                            +{{ nextWeekEvents.length - 3 }}개 더보기
-                        </button>
+                        <button v-if="nextWeekEvents.length > 3" @click="showMoreEvents('nextWeek')" class="text-xs text-primary cursor-pointer hover:underline text-left">+{{ nextWeekEvents.length - 3 }}개 더보기</button>
                     </div>
                 </div>
             </div>
@@ -175,22 +144,10 @@ function showMoreEvents(type) {
         <FullCalendar :options="calendarOptions" class="calendar-custom" />
 
         <!-- 주간 일정 전체보기 다이얼로그 -->
-        <Dialog
-            v-model:visible="weekEventsDialog"
-            :style="{ width: '500px' }"
-            :header="weekEventsTitle"
-            :modal="true"
-        >
+        <Dialog v-model:visible="weekEventsDialog" :style="{ width: '500px' }" :header="weekEventsTitle" :modal="true">
             <div class="flex flex-col gap-3">
-                <div
-                    v-for="event in weekEventsList"
-                    :key="event.id"
-                    class="flex items-center gap-3 p-3 border border-surface rounded-lg hover:bg-surface-50 transition-colors"
-                >
-                    <div
-                        class="w-4 h-4 rounded-full flex-shrink-0"
-                        :style="{ backgroundColor: event.backgroundColor }"
-                    ></div>
+                <div v-for="event in weekEventsList" :key="event.id" class="flex items-center gap-3 p-3 border border-surface rounded-lg hover:bg-surface-50 transition-colors">
+                    <div class="w-4 h-4 rounded-full flex-shrink-0" :style="{ backgroundColor: event.backgroundColor }"></div>
                     <div class="flex-1">
                         <div class="font-medium">{{ event.title }}</div>
                         <div class="text-sm text-muted-color">
@@ -201,12 +158,7 @@ function showMoreEvents(type) {
             </div>
 
             <template #footer>
-                <Button
-                    label="닫기"
-                    icon="pi pi-times"
-                    text
-                    @click="weekEventsDialog = false"
-                />
+                <Button label="닫기" icon="pi pi-times" text @click="weekEventsDialog = false" />
             </template>
         </Dialog>
     </div>

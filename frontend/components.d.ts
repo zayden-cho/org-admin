@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AppLogo: typeof import('./src/components/AppLogo.vue')['default']
     BlockUI: typeof import('primevue/blockui')['default']
     Button: typeof import('primevue/button')['default']
     CalendarWidget: typeof import('./src/components/dashboard/CalendarWidget.vue')['default']

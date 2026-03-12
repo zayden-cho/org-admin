@@ -32,12 +32,10 @@ export const errorHandler = (err: Error, c: Context) => {
     }, 500);
 };
 
-export const asyncHandler = (fn: Function) => {
+export const asyncHandler = (
+    fn: (c: Context, next: Next) => Promise<void | Response>
+) => {
     return async (c: Context, next: Next) => {
-        try {
-            await fn(c, next);
-        } catch (error) {
-            throw error;
-        }
+        await fn(c, next);
     };
 };

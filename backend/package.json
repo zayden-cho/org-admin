@@ -3,18 +3,24 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "echo 'Backend: No build required (Bun runs TypeScript directly)'"
+    "dev": "NODE_ENV=development bun run --watch src/index.ts",
+    "start": "NODE_ENV=production bun run src/index.ts",
+    "build": "echo 'Backend: No build required (Bun runs TypeScript directly)'",
+    "lint": "eslint . --ext .ts --fix",
+    "lint:check": "eslint . --ext .ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.7.6",
     "googleapis": "^169.0.0",
     "hono": "^4.11.1",
-    "zod": "^4.2.1"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-import": "^2.29.1",
     "typescript": "^5.0.0"
   }
 }

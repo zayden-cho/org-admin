@@ -1,33 +1,34 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 
-import { CalendarService } from '@/service/CalendarService';
-import { KrewsService } from '@/service/KrewsService';
-import StatsWidget from '@/components/dashboard/StatsWidget.vue';
 import CalendarWidget from '@/components/dashboard/CalendarWidget.vue';
 import CorpDistributionWidget from '@/components/dashboard/CorpDistributionWidget.vue';
 import CorpStatsWidget from '@/components/dashboard/CorpStatsWidget.vue';
+import StatsWidget from '@/components/dashboard/StatsWidget.vue';
+import { CalendarService } from '@/service/CalendarService';
+import { KrewsService } from '@/service/KrewsService';
 
 const loading = ref(true);
 const krews = ref([]);
 const calendarEvents = ref([]);
 
 const stats = computed(() => {
-    if (!krews.value.length) return {
-        totalKrews: 0,
-        newKrews: 0,
-        totalCorps: 0,
-        corpNames: [],
-        registeredKonacards: 0,
-        konacardRate: 0,
-        activeStatus: 0,
-        activeRate: 0
-    };
+    if (!krews.value.length)
+        return {
+            totalKrews: 0,
+            newKrews: 0,
+            totalCorps: 0,
+            corpNames: [],
+            registeredKonacards: 0,
+            konacardRate: 0,
+            activeStatus: 0,
+            activeRate: 0
+        };
 
     const total = krews.value.length;
-    const uniqueCorps = [...new Set(krews.value.map(k => k.corp))];
-    const withKonacard = krews.value.filter(k => k.konacard && k.konacard.trim() !== '').length;
-    const activeCount = krews.value.filter(k => k.status === '등록성공').length;
+    const uniqueCorps = [...new Set(krews.value.map((k) => k.corp))];
+    const withKonacard = krews.value.filter((k) => k.konacard && k.konacard.trim() !== '').length;
+    const activeCount = krews.value.filter((k) => k.status === '등록성공').length;
     const newCount = 24;
 
     return {
@@ -46,7 +47,7 @@ const corpStats = computed(() => {
     if (!krews.value.length) return [];
 
     const corpMap = new Map();
-    krews.value.forEach(krew => {
+    krews.value.forEach((krew) => {
         const count = corpMap.get(krew.corp) || 0;
         corpMap.set(krew.corp, count + 1);
     });
@@ -138,11 +139,7 @@ async function loadData() {
                     <Skeleton v-for="i in 8" :key="i" width="100%" height="3rem"></Skeleton>
                 </div>
             </div>
-            <CorpStatsWidget
-                v-else
-                :corp-stats="corpStats"
-                :total-krews="stats.totalKrews"
-            />
+            <CorpStatsWidget v-else :corp-stats="corpStats" :total-krews="stats.totalKrews" />
         </div>
     </div>
 </template>

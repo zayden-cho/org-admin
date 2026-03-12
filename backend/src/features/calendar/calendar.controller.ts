@@ -1,5 +1,6 @@
 import { Context } from 'hono';
 
+import { getErrorMessage } from '@/core/types/sheets.types';
 import { calendarService } from '@/features/calendar/calendar.service';
 
 export class CalendarController {
@@ -16,11 +17,11 @@ export class CalendarController {
                 data: events,
                 cached: !forceRefresh,
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error('Calendar fetch error:', error);
             return c.json({
                 success: false,
-                error: error.message,
+                error: getErrorMessage(error),
             }, 500);
         }
     }
@@ -30,8 +31,18 @@ export class CalendarController {
      */
     static async getMonthEvents(c: Context) {
         try {
-            const year = parseInt(c.req.param('year'));
-            const month = parseInt(c.req.param('month'));
+            const yearParam = c.req.param('year');
+            const monthParam = c.req.param('month');
+
+            if (!yearParam || !monthParam) {
+                return c.json({
+                    success: false,
+                    error: 'Year and month are required',
+                }, 400);
+            }
+
+            const year = parseInt(yearParam);
+            const month = parseInt(monthParam);
 
             if (isNaN(year) || isNaN(month)) {
                 return c.json({
@@ -46,11 +57,11 @@ export class CalendarController {
                 success: true,
                 data: events,
             });
-        } catch (error: any) {
+        } catch (error) {
             console.error('Month events fetch error:', error);
             return c.json({
                 success: false,
-                error: error.message,
+                error: getErrorMessage(error),
             }, 500);
         }
     }
@@ -66,10 +77,10 @@ export class CalendarController {
                 success: true,
                 message: 'Calendar cache cleared',
             });
-        } catch (error: any) {
+        } catch (error) {
             return c.json({
                 success: false,
-                error: error.message,
+                error: getErrorMessage(error),
             }, 500);
         }
     }
