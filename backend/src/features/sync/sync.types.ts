@@ -7,12 +7,12 @@ export interface KonacardData {
 
 export interface SourceRow {
     sourceId: CellValue;
-    corp: CellValue;
-    name: CellValue;
-    ldap: CellValue;
-    phoneNumber: CellValue;
-    checkoffStatus: CellValue;
-    cmsStatus: CellValue;
+    corp: string;
+    name: string;
+    ldap: string;
+    phoneNumber: string;
+    checkoffStatus: string;
+    cmsStatus: string;
 }
 
 export interface SheetItem {

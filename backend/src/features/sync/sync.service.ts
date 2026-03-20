@@ -1,6 +1,8 @@
-import { SheetData, SheetRow, cellToString, isValidSheetData, isValidSheetRow, getErrorMessage } from '@/core/types/sheets.types';
+import { SheetData, cellToString, isValidSheetData, getErrorMessage } from '@/core/types/sheets.types';
+import { columnToLetter, sleep, formatSheetName } from '@/core/utils/sheet.utils';
+import { krewsService } from '@/features/krews/krews.service';
 import { SyncRepository } from '@/features/sync/sync.repository';
-import { KonacardData, SourceRow, SheetItem } from '@/features/sync/sync.types';
+import { KonacardData, SourceRow } from '@/features/sync/sync.types';
 
 export class SyncService {
     private repository: SyncRepository;
@@ -80,36 +82,44 @@ export class SyncService {
             "CMS 상태"
         ];
 
-        const BASE_HEADERS = [
-            "corpId",
-            "krewId",
+        const KREWUNION_HEADERS = [
+            "krewunionId",
             "법인",
             "한글명",
             "영문명",
             "연락처",
             "체크오프 대상",
-            "CMS 상태",
+            "상태",
+            "가입월"
+        ];
+
+        const CORP_HEADERS = [
+            "corpId",
+            "krewunionId",
+            "법인",
+            "한글명",
+            "영문명",
+            "연락처",
+            "체크오프 대상",
+            "상태",
             "가입월",
+            "조합원방 참여여부",
             "코나카드",
             "코나카드 앱등록여부",
             "직책",
             "조직도"
         ];
 
+        const UNION_SHEET_NAME = "크루유니언";
         const MAX_SHEET_NAME_LEN = 100;
 
-        // ========================================
-        // 1. 원본 시트 데이터 가져오기
-        // ========================================
+        console.log('원본 시트에서 데이터 가져오는 중...');
         const values = await this.repository.getSourceSheetData(SOURCE_SHEET_NAME);
 
         if (values.length < 2) {
             throw new Error("원본 시트에 데이터 행이 없습니다.");
         }
 
-        // ========================================
-        // 2. 헤더 컬럼 인덱스 매핑
-        // ========================================
         const headerRow = values[0].map(value => String(value).trim());
 
         const columnId: Record<string, number> = {};
@@ -121,10 +131,7 @@ export class SyncService {
             columnId[header] = index;
         }
 
-        // ========================================
-        // 3. 법인별 데이터 그룹화
-        // ========================================
-        const items = new Map<string, SheetItem>();
+        const sourceRows: SourceRow[] = [];
 
         for (let i = 1; i < values.length; i++) {
             const row = values[i];
@@ -137,271 +144,405 @@ export class SyncService {
             const checkoffStatus = row[columnId["체크오프 대상"]];
             const cmsStatus = row[columnId["CMS 상태"]];
 
-            // 빈 행 스킵
             if ([corp, name, ldap, phoneNumber, checkoffStatus, cmsStatus].every(
                 value => value === "" || value === null || value === undefined
             )) {
                 continue;
             }
 
-            const corpString = String(corp ?? "").trim() || "미지정";
+            const corpString = cellToString(corp).trim() || "미지정";
 
-            // 특정 법인만 처리하는 경우 필터링
             if (corpName !== null && corpString !== corpName) {
                 continue;
             }
 
-            const sheetName = this.formatSheetName(corpString, MAX_SHEET_NAME_LEN);
-
-            if (!items.has(sheetName)) {
-                items.set(sheetName, { corpString, rows: [] });
-            }
-
-            items.get(sheetName)!.rows.push({
+            sourceRows.push({
                 sourceId,
-                corp,
-                name,
-                ldap,
-                phoneNumber,
-                checkoffStatus,
-                cmsStatus,
+                corp: corpString,
+                name: cellToString(name).trim(),
+                ldap: cellToString(ldap).trim(),
+                phoneNumber: cellToString(phoneNumber).trim(),
+                checkoffStatus: cellToString(checkoffStatus).trim(),
+                cmsStatus: cellToString(cmsStatus).trim()
             });
         }
 
-        // ========================================
-        // 4. 데이터 검증
-        // ========================================
-        if (corpName !== null && items.size === 0) {
-            throw new Error(`"${corpName}" 법인의 데이터를 찾을 수 없습니다.`);
-        }
+        console.log(`원본 데이터 파싱 완료: ${sourceRows.length}명`);
 
-        // ========================================
-        // 5. 각 법인 시트 처리 (Rate Limit 회피)
-        // ========================================
-        let sheetCount = 0;
-        let totalKrews = 0;
-        const totalSheets = items.size;
+        console.log('크루유니언 시트 갱신 중...');
 
-        for (const [sheetName, item] of items.entries()) {
-            sheetCount++;
-            totalKrews += item.rows.length;
+        const unionExists = await this.repository.targetSheetExists(UNION_SHEET_NAME);
 
-            // 시트 데이터 머지 (신규 생성 또는 기존 업데이트)
-            await this.mergeSheetData(sheetName, item.rows, BASE_HEADERS);
+        const existingUnionMap = new Map<string, {
+            krewunionId: string;
+            rowIndex: number;
+            corp: string;
+            name: string;
+            ldap: string;
+            phoneNumber: string;
+            checkoffStatus: string;
+            cmsStatus: string;
+            joinMonth: string;
+        }>();
 
-            // ✅ Rate Limit 회피: 마지막 시트가 아니면 1초 대기
-            if (sheetCount < totalSheets) {
-                console.log(`⏳ Rate limit 회피: 1초 대기... (${sheetCount}/${totalSheets})`);
-                await this.sleep(1000);
+        let maxKrewunionId = 0;
+
+        if (unionExists) {
+            console.log('기존 크루유니언 시트 발견, 데이터 로드 중...');
+
+            const existingData = await this.repository.getTargetSheetData(UNION_SHEET_NAME);
+
+            if (existingData.length > 1) {
+                for (let i = 1; i < existingData.length; i++) {
+                    const row = existingData[i];
+                    const krewunionId = cellToString(row[0]);
+                    const corp = cellToString(row[1]);
+                    const name = cellToString(row[2]);
+                    const ldap = cellToString(row[3]);
+                    const phoneNumber = cellToString(row[4]);
+                    const checkoffStatus = cellToString(row[5]);
+                    const cmsStatus = cellToString(row[6]);
+                    const joinMonth = cellToString(row[7]);
+
+                    if (krewunionId) {
+                        const match = krewunionId.match(/\d+$/);
+                        if (match) {
+                            const num = parseInt(match[0]);
+                            if (num > maxKrewunionId) {
+                                maxKrewunionId = num;
+                            }
+                        }
+
+                        const uniqueKey = this.getUniqueKey({
+                            corp,
+                            name,
+                            ldap,
+                            phoneNumber
+                        });
+
+                        existingUnionMap.set(uniqueKey, {
+                            krewunionId,
+                            rowIndex: i + 1,
+                            corp,
+                            name,
+                            ldap,
+                            phoneNumber,
+                            checkoffStatus,
+                            cmsStatus,
+                            joinMonth
+                        });
+                    }
+                }
             }
         }
 
-        // ========================================
-        // 6. 완료 로그
-        // ========================================
-        const mode = corpName ? `"${corpName}" 법인` : "전체";
-        console.log(`✅ ${mode} 처리 완료: ${items.size}개 시트, ${totalKrews}명`);
+        console.log(`기존 크루유니언 데이터: ${existingUnionMap.size}명, 최대 krewunionId: ${maxKrewunionId}`);
 
-        // ✅ 조합원 수 반환
-        return { totalKrews };
-    }
-
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    private async mergeSheetData(
-        sheetName: string,
-        sourceDataArray: SourceRow[],
-        baseHeaders: string[]
-    ): Promise<void> {
-        const exists = await this.repository.targetSheetExists(sheetName);
-
-        if (!exists) {
-            console.log(`🆕 신규 시트 생성: ${sheetName}`);
-
-            const dataRows: SheetData = [];
-            for (let i = 0; i < sourceDataArray.length; i++) {
-                const data = sourceDataArray[i];
-                const corpId = `kuc-${i + 1}`;
-                const krewId = `ku-${cellToString(data.sourceId)}`;
-
-                dataRows.push([
-                    corpId,
-                    krewId,
-                    cellToString(data.corp),
-                    cellToString(data.name),
-                    cellToString(data.ldap),
-                    cellToString(data.phoneNumber),
-                    cellToString(data.checkoffStatus),
-                    cellToString(data.cmsStatus),
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                ]);
-            }
-
-            await this.repository.createAndInitializeTargetSheet(
-                sheetName,
-                baseHeaders,
-                dataRows
-            );
-
-            console.log(`✅ 신규 시트 생성 완료: ${sheetName}, ${dataRows.length}명`);
-            return;
+        const sourceUnionMap = new Map<string, SourceRow>();
+        for (const sourceRow of sourceRows) {
+            const uniqueKey = this.getUniqueKey({
+                corp: sourceRow.corp,
+                name: sourceRow.name,
+                ldap: sourceRow.ldap,
+                phoneNumber: sourceRow.phoneNumber
+            });
+            sourceUnionMap.set(uniqueKey, sourceRow);
         }
 
-        const existingData = await this.repository.getTargetSheetData(sheetName);
+        const updateList: Array<{ rowIndex: number; cmsStatus: string }> = [];
+        const deleteList: number[] = [];
+        const insertList: Array<{ krewunionId: string; sourceRow: SourceRow }> = [];
+        const krewunionIdMap = new Map<string, string>();
 
-        // 빈 시트 처리
-        if (existingData.length < 1) {
-            console.log(`📝 빈 시트 초기화: ${sheetName}`);
+        for (const [uniqueKey, existing] of existingUnionMap.entries()) {
+            if (sourceUnionMap.has(uniqueKey)) {
+                const sourceRow = sourceUnionMap.get(uniqueKey)!;
 
-            const dataRows: SheetData = [];
-            for (let i = 0; i < sourceDataArray.length; i++) {
-                const data = sourceDataArray[i];
-                const corpId = `kuc-${i + 1}`;
-                const krewId = `ku-${data.sourceId}`;
-
-                dataRows.push([
-                    corpId,
-                    krewId,
-                    cellToString(data.corp),
-                    cellToString(data.name),
-                    cellToString(data.ldap),
-                    cellToString(data.phoneNumber),
-                    cellToString(data.checkoffStatus),
-                    cellToString(data.cmsStatus),
-                    '',
-                    '',
-                    '',
-                    '',
-                    ''
-                ]);
-            }
-
-            await this.repository.createAndInitializeTargetSheet(
-                sheetName,
-                baseHeaders,
-                dataRows
-            );
-
-            console.log(`✅ 빈 시트 초기화 완료: ${sheetName}, ${dataRows.length}명`);
-            return;
-        }
-
-        // ========================================
-        // 기존 데이터 머지
-        // ========================================
-        console.log(`🔄 기존 시트 업데이트: ${sheetName}`);
-
-        const headers = existingData[0].map(h => String(h).trim());
-
-        const colIndex: Record<string, number> = {};
-        headers.forEach((header, index) => {
-            colIndex[header] = index;
-        });
-
-        if (colIndex['영문명'] === undefined) {
-            throw new Error(`"${sheetName}" 시트에서 "영문명" 컬럼을 찾을 수 없습니다.`);
-        }
-
-        const existingMap = new Map<string, SheetRow>();
-        for (let i = 1; i < existingData.length; i++) {
-            const ldap = cellToString(existingData[i][colIndex['영문명']]).trim();
-            if (ldap) {
-                existingMap.set(ldap, existingData[i]);
-            }
-        }
-
-        const finalData: SheetData = [];
-
-        for (let i = 0; i < sourceDataArray.length; i++) {
-            const data = sourceDataArray[i];
-            const ldap = cellToString(data.ldap).trim();
-
-            const corpId = `kuc-${i + 1}`;
-            const krewId = `ku-${cellToString(data.sourceId)}`;
-
-            let rowData: SheetRow;
-
-            const oldRow = existingMap.get(ldap);
-            if (ldap && oldRow && isValidSheetRow(oldRow)) {
-                rowData = [...oldRow];
-
-                if (colIndex['corpId'] !== undefined) {
-                    rowData[colIndex['corpId']] = corpId;
+                if (existing.cmsStatus !== sourceRow.cmsStatus) {
+                    updateList.push({
+                        rowIndex: existing.rowIndex,
+                        cmsStatus: sourceRow.cmsStatus
+                    });
                 }
-                if (colIndex['krewId'] !== undefined) {
-                    rowData[colIndex['krewId']] = krewId;
-                }
-                if (colIndex['법인'] !== undefined) {
-                    rowData[colIndex['법인']] = cellToString(data.corp);
-                }
-                if (colIndex['한글명'] !== undefined) {
-                    rowData[colIndex['한글명']] = cellToString(data.name);
-                }
-                if (colIndex['영문명'] !== undefined) {
-                    rowData[colIndex['영문명']] = cellToString(data.ldap);
-                }
-                if (colIndex['연락처'] !== undefined) {
-                    rowData[colIndex['연락처']] = cellToString(data.phoneNumber);
-                }
-                if (colIndex['체크오프 대상'] !== undefined) {
-                    rowData[colIndex['체크오프 대상']] = cellToString(data.checkoffStatus);
-                }
-                if (colIndex['CMS 상태'] !== undefined) {
-                    rowData[colIndex['CMS 상태']] = cellToString(data.cmsStatus);
-                }
+
+                krewunionIdMap.set(uniqueKey, existing.krewunionId);
             } else {
-                rowData = new Array(baseHeaders.length).fill('');
+                deleteList.push(existing.rowIndex);
+            }
+        }
 
-                if (colIndex['corpId'] !== undefined) {
-                    rowData[colIndex['corpId']] = corpId;
-                }
-                if (colIndex['krewId'] !== undefined) {
-                    rowData[colIndex['krewId']] = krewId;
-                }
-                if (colIndex['법인'] !== undefined) {
-                    rowData[colIndex['법인']] = cellToString(data.corp);
-                }
-                if (colIndex['한글명'] !== undefined) {
-                    rowData[colIndex['한글명']] = cellToString(data.name);
-                }
-                if (colIndex['영문명'] !== undefined) {
-                    rowData[colIndex['영문명']] = cellToString(data.ldap);
-                }
-                if (colIndex['연락처'] !== undefined) {
-                    rowData[colIndex['연락처']] = cellToString(data.phoneNumber);
-                }
-                if (colIndex['체크오프 대상'] !== undefined) {
-                    rowData[colIndex['체크오프 대상']] = cellToString(data.checkoffStatus);
-                }
-                if (colIndex['CMS 상태'] !== undefined) {
-                    rowData[colIndex['CMS 상태']] = cellToString(data.cmsStatus);
+        for (const [uniqueKey, sourceRow] of sourceUnionMap.entries()) {
+            if (!existingUnionMap.has(uniqueKey)) {
+                maxKrewunionId++;
+                const krewunionId = `KU-${String(maxKrewunionId).padStart(6, '0')}`;
+                insertList.push({ krewunionId, sourceRow });
+                krewunionIdMap.set(uniqueKey, krewunionId);
+            }
+        }
+
+        console.log(`크루유니언 변경 사항: UPDATE ${updateList.length}명, DELETE ${deleteList.length}명, INSERT ${insertList.length}명`);
+
+        if (!unionExists) {
+            console.log('크루유니언 시트 신규 생성 중...');
+            const initialData: SheetData = insertList.map(item => [
+                item.krewunionId,
+                cellToString(item.sourceRow.corp),
+                cellToString(item.sourceRow.name),
+                cellToString(item.sourceRow.ldap),
+                cellToString(item.sourceRow.phoneNumber),
+                cellToString(item.sourceRow.checkoffStatus),
+                cellToString(item.sourceRow.cmsStatus),
+                ''
+            ]);
+            await this.repository.createAndInitializeTargetSheet(UNION_SHEET_NAME, KREWUNION_HEADERS, initialData);
+            console.log('크루유니언 시트 생성 완료');
+        } else {
+            if (updateList.length > 0) {
+                console.log(`${updateList.length}명 상태 업데이트 중...`);
+                const batchUpdates = updateList.map(item => ({
+                    range: `G${item.rowIndex}`,
+                    values: [[item.cmsStatus]]
+                }));
+                await this.repository.batchUpdateTargetSheet(UNION_SHEET_NAME, batchUpdates);
+                console.log('상태 업데이트 완료');
+            }
+
+            if (deleteList.length > 0) {
+                console.log(`${deleteList.length}명 삭제 중...`);
+                await this.repository.deleteTargetRows(UNION_SHEET_NAME, deleteList);
+            }
+
+            if (insertList.length > 0) {
+                console.log(`${insertList.length}명 신규 추가 중...`);
+                const newRows: SheetData = insertList.map(item => [
+                    item.krewunionId,
+                    cellToString(item.sourceRow.corp),
+                    cellToString(item.sourceRow.name),
+                    cellToString(item.sourceRow.ldap),
+                    cellToString(item.sourceRow.phoneNumber),
+                    cellToString(item.sourceRow.checkoffStatus),
+                    cellToString(item.sourceRow.cmsStatus),
+                    ''
+                ]);
+                await this.repository.updateTargetSheetData(
+                    UNION_SHEET_NAME,
+                    `A${existingUnionMap.size + 2}`,
+                    newRows
+                );
+                console.log('신규 추가 완료');
+            }
+        }
+
+        console.log('크루유니언 시트 갱신 완료');
+
+        await sleep(1000);
+
+        console.log('법인별 시트 갱신 시작...');
+
+        const corpSourceMap = new Map<string, SourceRow[]>();
+        for (const sourceRow of sourceRows) {
+            const corp = cellToString(sourceRow.corp);
+            const sheetName = formatSheetName(corp, MAX_SHEET_NAME_LEN);
+
+            if (!corpSourceMap.has(sheetName)) {
+                corpSourceMap.set(sheetName, []);
+            }
+            corpSourceMap.get(sheetName)!.push(sourceRow);
+        }
+
+        let sheetCount = 0;
+        const totalSheets = corpSourceMap.size;
+
+        for (const [sheetName, corpSourceRows] of corpSourceMap.entries()) {
+            sheetCount++;
+            console.log(`\n[${sheetCount}/${totalSheets}] ${sheetName} 처리 중...`);
+
+            const sheetExists = await this.repository.targetSheetExists(sheetName);
+
+            const existingCorpMap = new Map<string, {
+                corpId: string;
+                krewunionId: string;
+                rowIndex: number;
+                cmsStatus: string;
+            }>();
+            let maxCorpId = 0;
+
+            if (sheetExists) {
+                const existingData = await this.repository.getTargetSheetData(sheetName);
+
+                if (existingData.length > 1) {
+                    for (let i = 1; i < existingData.length; i++) {
+                        const row = existingData[i];
+                        const corpId = cellToString(row[0]);
+                        const krewunionId = cellToString(row[1]);
+                        const corp = cellToString(row[2]);
+                        const name = cellToString(row[3]);
+                        const ldap = cellToString(row[4]);
+                        const phoneNumber = cellToString(row[5]);
+                        const cmsStatus = cellToString(row[7]);
+
+                        if (corpId) {
+                            const match = corpId.match(/\d+$/);
+                            if (match) {
+                                const num = parseInt(match[0]);
+                                if (num > maxCorpId) {
+                                    maxCorpId = num;
+                                }
+                            }
+
+                            const uniqueKey = this.getUniqueKey({ corp, name, ldap, phoneNumber });
+                            existingCorpMap.set(uniqueKey, {
+                                corpId,
+                                krewunionId,
+                                rowIndex: i + 1,
+                                cmsStatus
+                            });
+                        }
+                    }
                 }
             }
 
-            finalData.push(rowData);
+            const sourceCorpMap = new Map<string, SourceRow>();
+            for (const sourceRow of corpSourceRows) {
+                const uniqueKey = this.getUniqueKey({
+                    corp: sourceRow.corp,
+                    name: sourceRow.name,
+                    ldap: sourceRow.ldap,
+                    phoneNumber: sourceRow.phoneNumber
+                });
+                sourceCorpMap.set(uniqueKey, sourceRow);
+            }
+
+            const corpUpdateList: Array<{ rowIndex: number; cmsStatus: string }> = [];
+            const corpDeleteList: number[] = [];
+            const corpInsertList: Array<{ corpId: string; krewunionId: string; sourceRow: SourceRow }> = [];
+
+            for (const [uniqueKey, existing] of existingCorpMap.entries()) {
+                if (sourceCorpMap.has(uniqueKey)) {
+                    const sourceRow = sourceCorpMap.get(uniqueKey)!;
+                    if (existing.cmsStatus !== sourceRow.cmsStatus) {
+                        corpUpdateList.push({
+                            rowIndex: existing.rowIndex,
+                            cmsStatus: sourceRow.cmsStatus
+                        });
+                    }
+                } else {
+                    corpDeleteList.push(existing.rowIndex);
+                }
+            }
+
+            for (const [uniqueKey, sourceRow] of sourceCorpMap.entries()) {
+                if (!existingCorpMap.has(uniqueKey)) {
+                    maxCorpId++;
+                    const corpId = `KUC-${String(maxCorpId).padStart(6, '0')}`;
+                    const krewunionId = krewunionIdMap.get(uniqueKey) || '';
+                    corpInsertList.push({ corpId, krewunionId, sourceRow });
+                }
+            }
+
+            console.log(`${sheetName}: UPDATE ${corpUpdateList.length}, DELETE ${corpDeleteList.length}, INSERT ${corpInsertList.length}`);
+
+            if (!sheetExists) {
+                console.log(`신규 시트 생성: ${sheetName}`);
+                const initialData: SheetData = corpInsertList.map(item => [
+                    item.corpId,
+                    item.krewunionId,
+                    cellToString(item.sourceRow.corp),
+                    cellToString(item.sourceRow.name),
+                    cellToString(item.sourceRow.ldap),
+                    cellToString(item.sourceRow.phoneNumber),
+                    cellToString(item.sourceRow.checkoffStatus),
+                    cellToString(item.sourceRow.cmsStatus),
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    ''
+                ]);
+                await this.repository.createAndInitializeTargetSheet(sheetName, CORP_HEADERS, initialData);
+                console.log(`${sheetName} 생성 완료`);
+            } else {
+                if (corpUpdateList.length > 0) {
+                    const batchUpdates = corpUpdateList.map(item => ({
+                        range: `H${item.rowIndex}`,
+                        values: [[item.cmsStatus]]
+                    }));
+                    await this.repository.batchUpdateTargetSheet(sheetName, batchUpdates);
+                }
+
+                if (corpDeleteList.length > 0) {
+                    await this.repository.deleteTargetRows(sheetName, corpDeleteList);
+                }
+
+                if (corpInsertList.length > 0) {
+                    const newRows: SheetData = corpInsertList.map(item => [
+                        item.corpId,
+                        item.krewunionId,
+                        cellToString(item.sourceRow.corp),
+                        cellToString(item.sourceRow.name),
+                        cellToString(item.sourceRow.ldap),
+                        cellToString(item.sourceRow.phoneNumber),
+                        cellToString(item.sourceRow.checkoffStatus),
+                        cellToString(item.sourceRow.cmsStatus),
+                        '',
+                        '',
+                        '',
+                        '',
+                        '',
+                        ''
+                    ]);
+                    await this.repository.updateTargetSheetData(
+                        sheetName,
+                        `A${existingCorpMap.size + 2}`,
+                        newRows
+                    );
+                }
+
+                console.log(`${sheetName} 갱신 완료`);
+            }
+
+            if (sheetCount < totalSheets) {
+                console.log(`Rate limit 회피: 1초 대기... (${sheetCount}/${totalSheets})`);
+                await sleep(1000);
+            }
         }
 
-        // ========================================
-        // 데이터 교체
-        // ========================================
-        if (existingData.length > 1) {
-            const lastCol = this.columnToLetter(Math.max(headers.length, baseHeaders.length));
-            await this.repository.clearTargetRange(sheetName, `A2:${lastCol}${existingData.length}`);
+        const mode = corpName ? `"${corpName}" 법인` : "전체";
+        console.log(`\n${mode} 처리 완료: ${corpSourceMap.size}개 시트, ${sourceRows.length}명`);
+
+        console.log('크루 데이터 캐시 갱신 중...');
+        try {
+            await krewsService.syncKrews();
+            console.log('크루 데이터 캐시 갱신 완료');
+        } catch (error) {
+            console.warn('크루 데이터 캐시 갱신 실패:', getErrorMessage(error));
         }
 
-        if (finalData.length > 0) {
-            await this.repository.updateTargetSheetData(sheetName, 'A2', finalData);
+        return { totalKrews: sourceRows.length };
+    }
+
+    private getUniqueKey(data: { corp: string; name: string; ldap: string; phoneNumber: string }): string {
+        if (data.corp && data.ldap) {
+            const corp = data.corp.trim();
+            const ldap = data.ldap.toLowerCase().trim();
+            if (corp && ldap) {
+                return `corp_ldap:${corp}:${ldap}`;
+            }
         }
 
-        await this.repository.autoResizeTargetColumns(sheetName, 0, baseHeaders.length - 1);
+        if (data.corp && data.name && data.phoneNumber) {
+            const corp = data.corp.trim();
+            const name = data.name.trim();
+            const phone = data.phoneNumber.replace(/[-\s]/g, '');
 
-        console.log(`✅ 기존 시트 업데이트 완료: ${sheetName}, ${finalData.length}명`);
+            if (corp && name && phone.length >= 10) {
+                return `corp_name_phone:${corp}:${name}:${phone}`;
+            }
+        }
+
+        console.warn('Fallback key used for:', data);
+        return `fallback:${data.corp}:${data.name}:${data.ldap || 'no-ldap'}`;
     }
 
     private async processKonacards(corpName: string): Promise<void> {
@@ -474,22 +615,21 @@ export class SyncService {
         let totalUpdated = 0;
 
         for (const [corpNameKey, empMap] of konacardMap.entries()) {
-            const sheetName = this.formatSheetName(corpNameKey, 100);
+            const sheetName = formatSheetName(corpNameKey, 100);
 
-            // ✅ this.repository.targetSheetExists 사용
             const exists = await this.repository.targetSheetExists(sheetName);
 
             if (!exists) {
-                console.log(`❌ 시트를 찾을 수 없음: ${sheetName}`);
+                console.log(`시트를 찾을 수 없음: ${sheetName}`);
                 continue;
             }
 
             const updated = await this.updateKonacardInSheet(sheetName, empMap);
             totalUpdated += updated;
-            console.log(`✅ ${sheetName}: ${updated}개 업데이트`);
+            console.log(`${sheetName}: ${updated}개 업데이트`);
         }
 
-        console.log(`✅ "${corpName}" ${totalUpdated}개 코나카드 업데이트 완료`);
+        console.log(`"${corpName}" ${totalUpdated}개 코나카드 업데이트 완료`);
     }
 
     private async updateKonacardInSheet(
@@ -518,13 +658,12 @@ export class SyncService {
             return 0;
         }
 
-        // ✅ 코나카드 컬럼 없으면 추가
         if (konacardCol === -1) {
             konacardCol = headers.length;
 
             await this.repository.updateTargetSheetData(
                 sheetName,
-                `${this.columnToLetter(konacardCol + 1)}1`,
+                `${columnToLetter(konacardCol + 1)}1`,
                 [['코나카드']]
             );
 
@@ -538,13 +677,13 @@ export class SyncService {
 
             await this.repository.updateTargetSheetData(
                 sheetName,
-                `${this.columnToLetter(appRegisteredCol + 1)}1`,
+                `${columnToLetter(appRegisteredCol + 1)}1`,
                 [['코나카드 앱등록여부']]
             );
 
             await this.repository.formatTargetHeaderRow(sheetName);
 
-            console.log(`📝 "${sheetName}" 시트에 "코나카드 앱등록여부" 컬럼 추가`);
+            console.log(`"${sheetName}" 시트에 "코나카드 앱등록여부" 컬럼 추가`);
         }
 
         const updates: Array<{
@@ -570,15 +709,13 @@ export class SyncService {
             const batchUpdates: Array<{ range: string; values: SheetData }> = [];
 
             for (const update of updates) {
-                // 코나카드 번호
                 batchUpdates.push({
-                    range: `${this.columnToLetter(konacardCol + 1)}${update.row}`,
+                    range: `${columnToLetter(konacardCol + 1)}${update.row}`,
                     values: [[update.cardNumber]]
                 });
 
-                // 앱등록여부
                 batchUpdates.push({
-                    range: `${this.columnToLetter(appRegisteredCol + 1)}${update.row}`,
+                    range: `${columnToLetter(appRegisteredCol + 1)}${update.row}`,
                     values: [[update.appRegistered]]
                 });
             }
@@ -589,39 +726,12 @@ export class SyncService {
                 await this.repository.batchUpdateTargetSheet(sheetName, batchUpdates);
             }
 
-            console.log(`✅ ${sheetName}: ${updates.length}개 코나카드 업데이트 완료 (Batch)`);
+            console.log(`${sheetName}: ${updates.length}개 코나카드 업데이트 완료 (Batch)`);
         }
 
         await this.repository.autoResizeTargetColumns(sheetName, konacardCol, appRegisteredCol);
 
         return updates.length;
-    }
-
-    private formatSheetName(name: string, maxLen: number): string {
-        let sheetName = String(name).trim();
-        sheetName = sheetName.replace(/[:\\/?*[\]]/g, " ");
-        sheetName = sheetName.replace(/\s+/g, " ").trim();
-
-        if (!sheetName) {
-            sheetName = "미지정";
-        }
-
-        if (sheetName.length > maxLen) {
-            sheetName = sheetName.slice(0, maxLen).trim();
-        }
-
-        return sheetName;
-    }
-
-    private columnToLetter(column: number): string {
-        let temp: number;
-        let letter = '';
-        while (column > 0) {
-            temp = (column - 1) % 26;
-            letter = String.fromCharCode(temp + 65) + letter;
-            column = (column - temp - 1) / 26;
-        }
-        return letter;
     }
 }
 

@@ -33,7 +33,7 @@ export function hasErrorCode(error: unknown): error is { code: number } {
         typeof error === 'object' &&
         error !== null &&
         'code' in error &&
-        typeof (error as any).code === 'number'
+        typeof (error as Record<string, unknown>).code === 'number'
     );
 }
 

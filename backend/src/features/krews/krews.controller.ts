@@ -38,6 +38,13 @@ export class KrewsController {
         try {
             const corp = c.req.param('corp');
 
+            if (!corp) {
+                return c.json({
+                    success: false,
+                    error: '법인 파라미터가 필요합니다.',
+                }, 400);
+            }
+
             const result = await krewsService.getKrewsByCorp(corp);
 
             return c.json({
@@ -64,6 +71,13 @@ export class KrewsController {
     async getKrewById(c: Context) {
         try {
             const id = c.req.param('id');
+
+            if (!id) {
+                return c.json({
+                    success: false,
+                    error: 'ID 파라미터가 필요합니다.',
+                }, 400);
+            }
 
             const result = await krewsService.getKrewById(id);
 

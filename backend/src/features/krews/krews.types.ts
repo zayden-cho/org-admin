@@ -1,6 +1,6 @@
 export interface KrewRawData {
     corpId: string;
-    krewId: string;
+    krewunionId: string;
     corp: string;
     name: string;
     ldap: string;
@@ -17,17 +17,17 @@ export interface KrewRawData {
 
 export const KREW_HEADER_MAP: Record<string, keyof KrewRawData> = {
     "corpId": "corpId",
-    "krewId": "krewId",
+    "krewunionId": "krewunionId",
     "법인": "corp",
     "한글명": "name",
     "영문명": "ldap",
     "연락처": "phoneNumber",
     "체크오프 대상": "isCheckoff",
-    "CMS 상태": "status",
+    "상태": "status",
     "가입월": "joinMonth",
+    "조합원방 참여여부": "chatRoomJoined",
     "코나카드": "konacard",
     "코나카드 앱등록여부": "konacardAppRegistered",
     "직책": "position",
-    "조직도": "orgChart",
-    "조합원방 참여여부": "chatRoomJoined"
+    "조직도": "orgChart"
 };

@@ -1,3 +1,4 @@
+import { cellToString, getErrorMessage } from '@/core/types/sheets.types';
 import { KrewsRepository } from '@/features/krews/krews.repository';
 import { KREW_HEADER_MAP, KrewRawData } from '@/features/krews/krews.types';
 
@@ -63,18 +64,23 @@ export class KrewsService {
         }
         const startTime = Date.now();
 
-        const sheetDataMap = await this.repository.getAllKrewsSheetsData();
+        try {
+            const values = await this.repository.getSheetData('크루유니언');
 
-        const krews: KrewRawData[] = [];
-
-        for (const [sheetName, values] of sheetDataMap.entries()) {
             if (values.length < 2) {
-                continue;
+                if (isDev) {
+                    console.log('크루유니언 시트가 비어있습니다.');
+                    console.log('========================================');
+                }
+                return {
+                    data: [],
+                    fromCache: false
+                };
             }
 
             const headers = values[0].map(h => String(h).trim());
-
             const colIndex: Record<string, number> = {};
+
             for (const [koreanName, englishName] of Object.entries(KREW_HEADER_MAP)) {
                 const idx = headers.indexOf(koreanName);
                 if (idx !== -1) {
@@ -83,7 +89,7 @@ export class KrewsService {
             }
 
             const orgChartStartIndex = headers.indexOf('조직도');
-            const krewRoomJoinedIndex = headers.indexOf('조합원방 참여여부');
+            const krews: KrewRawData[] = [];
 
             for (let i = 1; i < values.length; i++) {
                 const row = values[i];
@@ -93,58 +99,70 @@ export class KrewsService {
 
                 let orgChart: string[] = [];
                 if (orgChartStartIndex !== -1 && orgChartStartIndex < row.length) {
-                    const endIndex = krewRoomJoinedIndex !== -1 ? krewRoomJoinedIndex : row.length;
-                    orgChart = row.slice(orgChartStartIndex, endIndex)  // ✅ 범위 지정!
+                    orgChart = row.slice(orgChartStartIndex, row.length)
                         .filter(cell => cell && String(cell).trim() !== '')
                         .map(cell => String(cell).trim());
                 }
 
                 const krew: KrewRawData = {
-                    corpId: row[colIndex["corpId"]] || "",
-                    krewId: row[colIndex["krewId"]] || "",
-                    corp: row[colIndex["corp"]] || sheetName,
-                    name: row[colIndex["name"]] || "",
-                    ldap: row[colIndex["ldap"]] || "",
-                    phoneNumber: row[colIndex["phoneNumber"]] || "",
-                    isCheckoff: row[colIndex["isCheckoff"]] || "",
-                    status: row[colIndex["status"]] || "",
-                    joinMonth: row[colIndex["joinMonth"]] || "",
-                    konacard: row[colIndex["konacard"]] || "",
-                    konacardAppRegistered: row[colIndex["konacardAppRegistered"]] || "",
-                    position: row[colIndex["position"]] || "",
-                    orgChart,
-                    chatRoomJoined: row[colIndex["chatRoomJoined"]] || "",
-
+                    corpId: cellToString(row[colIndex["corpId"]]),
+                    krewunionId: cellToString(row[colIndex["krewunionId"]]),
+                    corp: cellToString(row[colIndex["corp"]]),
+                    name: cellToString(row[colIndex["name"]]),
+                    ldap: cellToString(row[colIndex["ldap"]]),
+                    phoneNumber: cellToString(row[colIndex["phoneNumber"]]),
+                    isCheckoff: cellToString(row[colIndex["isCheckoff"]]),
+                    status: cellToString(row[colIndex["status"]]),
+                    joinMonth: cellToString(row[colIndex["joinMonth"]]),
+                    chatRoomJoined: cellToString(row[colIndex["chatRoomJoined"]]),
+                    konacard: cellToString(row[colIndex["konacard"]]),
+                    konacardAppRegistered: cellToString(row[colIndex["konacardAppRegistered"]]),
+                    position: cellToString(row[colIndex["position"]]),
+                    orgChart
                 };
 
                 krews.push(krew);
             }
+
+            const sorted = krews.sort((a, b) => {
+                const aNum = parseInt(a.krewunionId.replace(/\D/g, '')) || 0;
+                const bNum = parseInt(b.krewunionId.replace(/\D/g, '')) || 0;
+                return aNum - bNum;
+            });
+
+            this.cache.data = sorted;
+            this.cache.timestamp = Date.now();
+
+            const elapsed = Date.now() - startTime;
+
+            if (isDev) {
+                console.log('Data fetched and cached from 크루유니언!');
+                console.log('items:', sorted.length);
+                console.log('elapsed:', `${elapsed}ms`);
+                console.log('========================================');
+            } else {
+                console.log(`Krews data fetched from 크루유니언: ${sorted.length} items in ${elapsed}ms`);
+            }
+
+            return {
+                data: sorted,
+                fromCache: false
+            };
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+
+            if (isDev) {
+                console.log('크루유니언 시트 조회 실패:', errorMessage);
+                console.log('========================================');
+            } else {
+                console.log('크루유니언 시트 조회 실패. 전체조합원갱신을 먼저 실행해주세요.');
+            }
+
+            return {
+                data: [],
+                fromCache: false
+            };
         }
-
-        const sorted = krews.sort((a, b) => {
-            const aNum = parseInt(a.krewId.replace('ku-', '')) || 0;
-            const bNum = parseInt(b.krewId.replace('ku-', '')) || 0;
-            return aNum - bNum;
-        });
-
-        this.cache.data = sorted;
-        this.cache.timestamp = Date.now();
-
-        const elapsed = Date.now() - startTime;
-
-        if (isDev) {
-            console.log('Data fetched and cached!');
-            console.log('items:', sorted.length);
-            console.log('elapsed:', `${elapsed}ms`);
-            console.log('========================================');
-        } else {
-            console.log(`Krews data fetched: ${sorted.length} items in ${elapsed}ms`);
-        }
-
-        return {
-            data: sorted,
-            fromCache: false
-        };
     }
 
     /**
@@ -162,7 +180,7 @@ export class KrewsService {
     async getKrewById(id: string): Promise<KrewRawData | null> {
         const result = await this.getAllKrews();
 
-        return result.data.find(krew => krew.krewId === id) || null;
+        return result.data.find(krew => krew.krewunionId === id) || null;
     }
 
     /**

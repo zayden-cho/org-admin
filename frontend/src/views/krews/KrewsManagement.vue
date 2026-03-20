@@ -5,6 +5,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 
 import { KrewsService } from '@/service/KrewsService';
+import KrewDetail from '@/views/krews/KrewDetail.vue';
 
 const toast = useToast();
 const dt = ref();
@@ -98,7 +99,7 @@ const isAllCurrentPageSelected = computed(() => {
 
     if (currentPageData.length === 0) return false;
 
-    return currentPageData.every((item) => selectedKrews.value.some((selected) => selected.krewId === item.krewId));
+    return currentPageData.every((item) => selectedKrews.value.some((selected) => selected.krewunionId === item.krewunionId));
 });
 
 // ========================================
@@ -112,7 +113,7 @@ function toggleCurrentPageSelection(checked) {
         let addedCount = 0;
 
         currentPageData.forEach((item) => {
-            if (!newSelections.some((s) => s.krewId === item.krewId)) {
+            if (!newSelections.some((s) => s.krewunionId === item.krewunionId)) {
                 newSelections.push(item);
                 addedCount++;
             }
@@ -129,10 +130,10 @@ function toggleCurrentPageSelection(checked) {
             });
         }
     } else {
-        const currentPageIds = currentPageData.map((item) => item.krewId);
+        const currentPageIds = currentPageData.map((item) => item.krewunionId);
         const beforeCount = selectedKrews.value.length;
 
-        selectedKrews.value = selectedKrews.value.filter((item) => !currentPageIds.includes(item.krewId));
+        selectedKrews.value = selectedKrews.value.filter((item) => !currentPageIds.includes(item.krewunionId));
 
         const removedCount = beforeCount - selectedKrews.value.length;
 
@@ -151,7 +152,7 @@ function toggleCurrentPageSelection(checked) {
 // 개별 행 선택/해제 토글
 // ========================================
 function toggleRowSelection(rowData) {
-    const index = selectedKrews.value.findIndex((item) => item.krewId === rowData.krewId);
+    const index = selectedKrews.value.findIndex((item) => item.krewunionId === rowData.krewunionId);
 
     if (index > -1) {
         selectedKrews.value.splice(index, 1);
@@ -164,7 +165,7 @@ function toggleRowSelection(rowData) {
 // 개별 행 선택 여부 체크
 // ========================================
 function isRowSelected(rowData) {
-    return selectedKrews.value.some((item) => item.krewId === rowData.krewId);
+    return selectedKrews.value.some((item) => item.krewunionId === rowData.krewunionId);
 }
 
 // ========================================
@@ -557,11 +558,11 @@ onMounted(async () => {
             <DataTable
                 ref="dt"
                 :value="filteredKrews"
-                dataKey="krewId"
+                dataKey="krewunionId"
                 :paginator="true"
                 :rows="10"
                 :filters="filters"
-                :globalFilterFields="['krewId', 'name', 'ldap', 'corp', 'phoneNumber', 'konacard', 'status', 'orgChartString']"
+                :globalFilterFields="['krewunionId', 'name', 'ldap', 'corp', 'phoneNumber', 'konacard', 'status', 'orgChartString']"
                 :rowHover="true"
                 :loading="false"
                 paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
@@ -594,7 +595,7 @@ onMounted(async () => {
                         </div>
                     </template>
                 </Column>
-                <Column field="krewId" header="조합원 ID" sortable style="min-width: 10rem"></Column>
+                <Column field="krewunionId" header="조합원 ID" sortable style="min-width: 10rem"></Column>
                 <Column field="name" header="이름" sortable style="min-width: 12rem"></Column>
                 <Column field="ldap" header="LDAP" sortable style="min-width: 12rem"></Column>
                 <Column field="corp" header="법인" sortable style="min-width: 10rem">
@@ -666,150 +667,8 @@ onMounted(async () => {
             </template>
         </Dialog>
 
-        <!-- ✅ 조합원 상세 정보 Dialog -->
-        <Dialog v-model:visible="krewDialog" :style="{ width: '700px' }" header="조합원 상세 정보" :modal="true" class="krew-detail-dialog">
-            <div class="flex flex-col gap-6">
-                <!-- 기본 정보 섹션 -->
-                <div class="detail-section">
-                    <div class="section-header">
-                        <i class="pi pi-user"></i>
-                        <span>기본 정보</span>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8 mb-6">
-                        <div class="col-span-6">
-                            <label class="detail-label">조합원 ID</label>
-                            <div class="detail-value-box">{{ selectedKrew.krewId || '-' }}</div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">법인 ID</label>
-                            <div class="detail-value-box">{{ selectedKrew.corpId || '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8 mb-6">
-                        <div class="col-span-6">
-                            <label class="detail-label">이름</label>
-                            <div class="detail-value-highlight name-highlight">{{ selectedKrew.name || '-' }}</div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">LDAP</label>
-                            <div class="detail-value-highlight name-highlight">{{ selectedKrew.ldap || '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8">
-                        <div class="col-span-6">
-                            <label class="detail-label">법인</label>
-                            <div class="mt-2">
-                                <Tag v-if="selectedKrew.corp" :value="selectedKrew.corp" :severity="getCorpColor(selectedKrew.corp)" class="detail-tag" />
-                                <span v-else class="detail-value-empty">미지정</span>
-                            </div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">연락처</label>
-                            <div class="detail-value-highlight name-highlight">{{ selectedKrew.phoneNumber || '-' }}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 조합 정보 섹션 -->
-                <div class="detail-section">
-                    <div class="section-header">
-                        <i class="pi pi-check-circle"></i>
-                        <span>조합 정보</span>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8 mb-6">
-                        <div class="col-span-6">
-                            <label class="detail-label">체크오프 대상</label>
-                            <div class="mt-2">
-                                <Tag v-if="selectedKrew.isCheckoff" :value="selectedKrew.isCheckoff" :severity="selectedKrew.isCheckoff === '체크오프 대상' ? 'success' : 'secondary'" class="detail-tag" />
-                                <Tag v-else value="정보 없음" severity="secondary" class="detail-tag" />
-                            </div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">CMS 상태</label>
-                            <div class="mt-2">
-                                <Tag v-if="selectedKrew.status" :value="selectedKrew.status" :severity="selectedKrew.status === '등록성공' ? 'success' : 'warn'" class="detail-tag" />
-                                <span v-else class="detail-value-empty">미등록</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8">
-                        <div class="col-span-6">
-                            <label class="detail-label">가입월</label>
-                            <div class="detail-value-highlight name-highlight">{{ selectedKrew.joinMonth || '-' }}</div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">조합원방 참여여부</label>
-                            <div class="mt-2">
-                                <Tag v-if="selectedKrew.chatRoomJoined" :value="selectedKrew.chatRoomJoined" :severity="selectedKrew.chatRoomJoined === 'Y' || selectedKrew.chatRoomJoined === '참여' ? 'success' : 'secondary'" class="detail-tag" />
-                                <Tag v-else value="정보 없음" severity="secondary" class="detail-tag" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 코나카드 정보 섹션 -->
-                <div class="detail-section">
-                    <div class="section-header">
-                        <i class="pi pi-credit-card"></i>
-                        <span>코나카드 정보</span>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8">
-                        <div class="col-span-6">
-                            <label class="detail-label">코나카드</label>
-                            <div class="mt-2">
-                                <span v-if="selectedKrew.konacard" class="detail-value-highlight name-highlight">{{ selectedKrew.konacard }}</span>
-                                <Tag v-else value="미등록" severity="secondary" class="detail-tag" />
-                            </div>
-                        </div>
-                        <div class="col-span-6">
-                            <label class="detail-label">앱등록여부</label>
-                            <div class="mt-2">
-                                <Tag
-                                    v-if="selectedKrew.konacardAppRegistered"
-                                    :value="selectedKrew.konacardAppRegistered"
-                                    :severity="selectedKrew.konacardAppRegistered === 'Y' || selectedKrew.konacardAppRegistered === '등록' ? 'success' : 'secondary'"
-                                    class="detail-tag"
-                                />
-                                <Tag v-else value="미등록" severity="secondary" class="detail-tag" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 조직 정보 섹션 -->
-                <div class="detail-section">
-                    <div class="section-header">
-                        <i class="pi pi-sitemap"></i>
-                        <span>조직 정보</span>
-                    </div>
-
-                    <div class="grid grid-cols-12 gap-8 mb-6">
-                        <div class="col-span-6">
-                            <label class="detail-label">직책</label>
-                            <div class="detail-value-box">{{ selectedKrew.position || '-' }}</div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="detail-label">조직도</label>
-                        <div v-if="selectedKrew.orgChart && selectedKrew.orgChart.length > 0" class="flex flex-wrap gap-2 mt-2">
-                            <Tag v-for="(org, index) in selectedKrew.orgChart" :key="index" :value="org" severity="secondary" class="detail-tag" />
-                        </div>
-                        <div v-else class="detail-value-empty mt-2">조직도 정보 없음</div>
-                    </div>
-                </div>
-            </div>
-
-            <template #footer>
-                <Button label="닫기" icon="pi pi-times" outlined severity="secondary" @click="krewDialog = false" />
-            </template>
-        </Dialog>
+        <!-- ✅ 조합원 상세 정보 컴포넌트 -->
+        <KrewDetail :krew="selectedKrew" :visible="krewDialog" @close="krewDialog = false" />
     </div>
 </template>
 
@@ -1016,129 +875,10 @@ onMounted(async () => {
 }
 
 /* ====================================== */
-/* 10. 조합원 상세 Dialog */
-/* ====================================== */
-
-.krew-detail-dialog :deep(.p-dialog-content) {
-    padding: 1.5rem !important;
-    background: var(--surface-ground) !important;
-}
-
-.detail-section {
-    padding: 2rem 1.5rem;
-    background: var(--surface-0);
-    border-radius: var(--content-border-radius);
-    border-left: 4px solid var(--primary-color);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-}
-
-.section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--text-color);
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--surface-border);
-}
-
-.section-header i {
-    font-size: 1.125rem;
-    color: var(--primary-color);
-}
-
-.detail-label {
-    display: block;
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--text-color-secondary);
-    margin-bottom: 0.5rem;
-}
-
-.detail-value-box {
-    font-size: 1rem;
-    font-weight: 500;
-    color: var(--text-color);
-    padding: 0.75rem 1rem;
-    background: var(--surface-50);
-    border-radius: 6px;
-    border: 1px solid var(--surface-border);
-    min-height: 2.75rem;
-    display: flex;
-    align-items: center;
-}
-
-.detail-value-highlight {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: var(--text-color);
-    padding: 0.75rem 1rem;
-    background: var(--primary-50);
-    border-radius: 6px;
-    border: 1px solid var(--primary-100);
-    min-height: 2.75rem;
-    display: flex;
-    align-items: center;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-/* ✅ 진한 황금색으로 변경! (#1a1a1a → #B8860B) */
-.name-highlight {
-    font-size: 1.125rem;
-    font-weight: 700;
-    background: #fffacd;
-    color: #b8860b !important;
-    border-color: #ffe87c;
-}
-
-.detail-value-empty {
-    font-size: 0.875rem;
-    color: var(--text-color-secondary);
-    font-style: italic;
-    padding: 0.75rem 1rem;
-    background: var(--surface-50);
-    border-radius: 6px;
-    border: 1px dashed var(--surface-border);
-    display: inline-block;
-}
-
-.detail-tag {
-    font-size: 0.9rem !important;
-    padding: 0.5rem 0.875rem !important;
-    font-weight: 600 !important;
-}
-
-/* ====================================== */
-/* 11. 반응형 */
+/* 10. 반응형 */
 /* ====================================== */
 
 @media (max-width: 768px) {
-    .krew-detail-dialog :deep(.p-dialog) {
-        width: 95vw !important;
-    }
-
-    .detail-section {
-        padding: 1.5rem;
-    }
-
-    .section-header {
-        font-size: 1rem;
-    }
-
-    .section-header i {
-        font-size: 1rem;
-    }
-
-    .detail-value-highlight {
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
-    }
-
-    .name-highlight {
-        font-size: 1rem;
-    }
 }
 </style>
 
@@ -1146,12 +886,5 @@ onMounted(async () => {
 <style>
 .app-dark .sync-message-box {
     background: var(--surface-card);
-}
-
-/* ✅ 다크모드에서도 진한 황금색 적용 (#ffe87c → #DAA520) */
-.app-dark .name-highlight {
-    background: #4a4520 !important;
-    color: #daa520 !important;
-    border-color: #6a6530 !important;
 }
 </style>

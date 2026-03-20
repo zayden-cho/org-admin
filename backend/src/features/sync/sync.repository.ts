@@ -57,6 +57,10 @@ export class SyncRepository {
         return this.targetRepository.clearRange(sheetName, range);
     }
 
+    async deleteTargetRows(sheetName: string, rowIndices: number[]): Promise<void> {
+        return this.targetRepository.deleteRows(sheetName, rowIndices);
+    }
+
     async batchUpdateTargetSheet(
         sheetName: string,
         updates: Array<{ range: string; values: SheetData }>

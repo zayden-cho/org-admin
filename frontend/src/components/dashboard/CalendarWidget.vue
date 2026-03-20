@@ -56,7 +56,7 @@ function handleEventClick(clickInfo) {
     console.log('Event clicked:', event.title, event.extendedProps);
 
     if (event.extendedProps.type === 'krew') {
-        router.push(`/krews?id=${event.extendedProps.krewId}`);
+        router.push(`/krews?id=${event.extendedProps.krewunionId}`);
     }
 }
 

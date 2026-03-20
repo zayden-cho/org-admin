@@ -4,6 +4,7 @@ import { google, sheets_v4 } from 'googleapis';
 
 import { GOOGLE_CREDENTIALS_PATH } from '@/core/config/google.config';
 import { SheetsConfig, SheetData, hasErrorCode, getErrorMessage } from '@/core/types/sheets.types';
+import { sleep } from '@/core/utils/sheet.utils';
 
 export class SheetsRepository {
     protected sheets: sheets_v4.Sheets;
@@ -45,7 +46,7 @@ export class SheetsRepository {
 
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn('⚠️ Read rate limit hit (getSheetNames), retrying...');
+                    console.warn('Read rate limit hit (getSheetNames), retrying...');
                     throw error;
                 }
                 console.error('Failed to fetch sheet names:', error);
@@ -69,7 +70,7 @@ export class SheetsRepository {
 
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Read rate limit hit (${sheetName}), retrying...`);
+                    console.warn(`Read rate limit hit (${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to fetch sheet data: ${sheetName}`, error);
@@ -81,11 +82,11 @@ export class SheetsRepository {
     /**
      * 모든 시트의 데이터 가져오기 (순차 처리 + 딜레이)
      */
-    async getAllSheetsData(range: string = 'A:Z'): Promise<Map<string, SheetData>> {  // ✅
+    async getAllSheetsData(range: string = 'A:Z'): Promise<Map<string, SheetData>> {
         const sheetNames = await this.getSheetNames();
         const sheetDataMap = new Map<string, SheetData>();
 
-        console.log(`📊 총 ${sheetNames.length}개 시트 순차 조회 시작 (Rate Limit 안전)...`);
+        console.log(`총 ${sheetNames.length}개 시트 순차 조회 시작 (Rate Limit 안전)...`);
 
         for (let i = 0; i < sheetNames.length; i++) {
             const name = sheetNames[i];
@@ -94,17 +95,17 @@ export class SheetsRepository {
                 const data = await this.getSheetData(name, range);
                 sheetDataMap.set(name, data);
 
-                console.log(`✅ [${i + 1}/${sheetNames.length}] ${name} 조회 완료`);
+                console.log(`[${i + 1}/${sheetNames.length}] ${name} 조회 완료`);
 
                 if (i < sheetNames.length - 1) {
-                    await this.sleep(300);
+                    await sleep(300);
                 }
             } catch (error) {
-                console.warn(`❌ Failed to fetch sheet: ${name}`, error);
+                console.warn(`Failed to fetch sheet: ${name}`, error);
             }
         }
 
-        console.log(`✅ 전체 시트 조회 완료: ${sheetDataMap.size}개`);
+        console.log(`전체 시트 조회 완료: ${sheetDataMap.size}개`);
         return sheetDataMap;
     }
 
@@ -123,7 +124,7 @@ export class SheetsRepository {
 
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Read rate limit hit (${range}), retrying...`);
+                    console.warn(`Read rate limit hit (${range}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to fetch range data: ${range}`, error);
@@ -158,7 +159,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (createSheet: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (createSheet: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to create sheet: ${sheetName}`, error);
@@ -185,7 +186,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (updateSheetData: ${sheetName}!${range}), retrying...`);
+                    console.warn(`Write rate limit hit (updateSheetData: ${sheetName}!${range}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to update sheet data: ${sheetName}!${range}`, error);
@@ -210,7 +211,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (appendSheetData: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (appendSheetData: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to append sheet data: ${sheetName}`, error);
@@ -233,11 +234,88 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (clearRange: ${sheetName}!${range}), retrying...`);
+                    console.warn(`Write rate limit hit (clearRange: ${sheetName}!${range}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to clear range: ${sheetName}!${range}`, error);
                 throw new Error(`범위 삭제 실패.: ${sheetName}!${range}, ${getErrorMessage(error)}`);
+            }
+        });
+    }
+
+    /**
+     * 시트 ID 가져오기 (Retry)
+     */
+    private async getSheetId(sheetName: string): Promise<number> {
+        return await this.retryWithBackoff(async () => {
+            try {
+                const response = await this.sheets.spreadsheets.get({
+                    spreadsheetId: this.spreadsheetId,
+                });
+
+                const sheet = response.data.sheets?.find(
+                    s => s.properties?.title === sheetName
+                );
+
+                if (!sheet || !sheet.properties || sheet.properties.sheetId === null || sheet.properties.sheetId === undefined) {
+                    throw new Error(`시트를 찾을 수 없습니다: ${sheetName}`);
+                }
+
+                return sheet.properties.sheetId as number;
+            } catch (error) {
+                if (hasErrorCode(error) && error.code === 429) {
+                    console.warn(`Read rate limit hit (getSheetId: ${sheetName}), retrying...`);
+                    throw error;
+                }
+                console.error(`Failed to get sheet ID: ${sheetName}`, error);
+                throw new Error(`시트 ID 가져오기 실패: ${sheetName}, ${getErrorMessage(error)}`);
+            }
+        });
+    }
+
+    /**
+     * 행 삭제 (Retry)
+     * @param sheetName 시트 이름
+     * @param rowIndices 삭제할 행 번호 배열 (1-based, 헤더는 1번)
+     */
+    async deleteRows(sheetName: string, rowIndices: number[]): Promise<void> {
+        if (rowIndices.length === 0) {
+            return;
+        }
+
+        await this.retryWithBackoff(async () => {
+            try {
+                const sheetId = await this.getSheetId(sheetName);
+
+                // 내림차순 정렬 (뒤에서부터 삭제)
+                const sortedIndices = [...rowIndices].sort((a, b) => b - a);
+
+                const requests = sortedIndices.map(rowIndex => ({
+                    deleteDimension: {
+                        range: {
+                            sheetId: sheetId,
+                            dimension: 'ROWS',
+                            startIndex: rowIndex - 1,
+                            endIndex: rowIndex
+                        }
+                    }
+                }));
+
+                await this.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: this.spreadsheetId,
+                    requestBody: {
+                        requests
+                    }
+                });
+
+                console.log(`${sheetName}: ${rowIndices.length}개 행 삭제 완료`);
+            } catch (error) {
+                if (hasErrorCode(error) && error.code === 429) {
+                    console.warn(`Write rate limit hit (deleteRows: ${sheetName}), retrying...`);
+                    throw error;
+                }
+                console.error(`Failed to delete rows: ${sheetName}`, error);
+                throw new Error(`행 삭제 실패: ${sheetName}, ${getErrorMessage(error)}`);
             }
         });
     }
@@ -290,7 +368,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (deleteSheet: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (deleteSheet: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to delete sheet: ${sheetName}`, error);
@@ -319,7 +397,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn('⚠️ Write rate limit hit (batchUpdate), retrying...');
+                    console.warn('Write rate limit hit (batchUpdate), retrying...');
                     throw error;
                 }
                 console.error('Failed to batch update', error);
@@ -372,7 +450,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (formatHeaderRow: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (formatHeaderRow: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to format header row: ${sheetName}`, error);
@@ -419,7 +497,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (freezeHeaderRow: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (freezeHeaderRow: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to freeze header row: ${sheetName}`, error);
@@ -465,7 +543,7 @@ export class SheetsRepository {
                 });
             } catch (error) {
                 if (hasErrorCode(error) && error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (autoResizeColumns: ${sheetName}), retrying...`);
+                    console.warn(`Write rate limit hit (autoResizeColumns: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to auto resize columns.: ${sheetName}, ${getErrorMessage(error)}`);
@@ -492,28 +570,7 @@ export class SheetsRepository {
     }
 
     /**
-     * 컬럼 인덱스를 문자로 변환 (0 → A, 1 → B, ...)
-     */
-    protected columnToLetter(column: number): string {
-        let temp: number;
-        let letter = '';
-        while (column > 0) {
-            temp = (column - 1) % 26;
-            letter = String.fromCharCode(temp + 65) + letter;
-            column = (column - temp - 1) / 26;
-        }
-        return letter;
-    }
-
-    /**
-     * Sleep 유틸리티
-     */
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    /**
-     * ✅ Exponential Backoff Retry (강화!)
+     * Exponential Backoff Retry (강화!)
      * - 429 에러 발생 시 지수적으로 대기 시간 증가
      * - 최대 5회 재시도
      * - 기본 2초부터 시작: 2초 → 4초 → 8초 → 16초 → 32초
@@ -533,8 +590,8 @@ export class SheetsRepository {
 
                 // Exponential backoff: 2초 → 4초 → 8초 → 16초 → 32초
                 const delay = baseDelay * Math.pow(2, attempt);
-                console.warn(`⚠️ Rate limit hit, retrying in ${delay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
-                await this.sleep(delay);
+                console.warn(`Rate limit hit, retrying in ${delay}ms... (Attempt ${attempt + 1}/${maxRetries})`);
+                await sleep(delay);
             }
         }
         throw new Error('Max retries exceeded');
@@ -563,9 +620,9 @@ export class SheetsRepository {
                 });
 
                 console.log(`Batch update completed: ${updates.length} ranges in ${sheetName}`);
-            } catch (error: any) {
-                if (error.code === 429) {
-                    console.warn(`⚠️ Write rate limit hit (batchUpdateSheetData: ${sheetName}), retrying...`);
+            } catch (error) {
+                if (hasErrorCode(error) && error.code === 429) {
+                    console.warn(`Write rate limit hit (batchUpdateSheetData: ${sheetName}), retrying...`);
                     throw error;
                 }
                 console.error(`Failed to batch update: ${sheetName}`, error);
@@ -588,23 +645,23 @@ export class SheetsRepository {
             chunks.push(updates.slice(i, i + chunkSize));
         }
 
-        console.log(`📦 Processing ${updates.length} updates in ${chunks.length} chunks...`);
+        console.log(`Processing ${updates.length} updates in ${chunks.length} chunks...`);
 
         for (let i = 0; i < chunks.length; i++) {
-            console.log(`📦 Processing chunk ${i + 1}/${chunks.length}...`);
+            console.log(`Processing chunk ${i + 1}/${chunks.length}...`);
 
             await this.batchUpdateSheetData(sheetName, chunks[i]);
 
             if (i < chunks.length - 1) {
-                await this.sleep(500);
+                await sleep(500);
             }
         }
 
-        console.log(`✅ All chunks processed: ${updates.length} updates`);
+        console.log(`All chunks processed: ${updates.length} updates`);
     }
 
     /**
-     * ✅ 신규 시트 생성 + 초기화 (배치 최적화 + Retry 강화)
+     * 신규 시트 생성 + 초기화 (배치 최적화 + Retry 강화)
      */
     async createAndInitializeSheet(
         sheetName: string,
@@ -612,11 +669,11 @@ export class SheetsRepository {
         dataRows: SheetData
     ): Promise<void> {
         try {
-            console.log(`🔧 시트 생성 및 초기화: ${sheetName}`);
+            console.log(`시트 생성 및 초기화: ${sheetName}`);
 
             // 1. 시트 생성 (Retry 적용됨)
             await this.createSheet(sheetName);
-            await this.sleep(500);
+            await sleep(500);
 
             // 2. 시트 정보 가져오기 (Retry 적용)
             const response = await this.retryWithBackoff(async () => {
@@ -687,17 +744,17 @@ export class SheetsRepository {
                 });
             });
 
-            await this.sleep(500);
+            await sleep(500);
 
             // 4. 헤더 + 데이터를 한 번에! (Retry 적용됨)
             const allData = [headers, ...dataRows];
             await this.updateSheetData(sheetName, 'A1', allData);
 
-            console.log(`✅ 시트 생성 및 초기화 완료: ${sheetName}, ${dataRows.length}행`);
+            console.log(`시트 생성 및 초기화 완료: ${sheetName}, ${dataRows.length}행`);
 
-        } catch (error: any) {
+        } catch (error) {
             console.error(`시트 생성 및 초기화 실패: ${sheetName}`, error);
-            throw new Error(`시트 생성 실패: ${sheetName}`);
+            throw new Error(`시트 생성 실패: ${sheetName}, ${getErrorMessage(error)}`);
         }
     }
 }

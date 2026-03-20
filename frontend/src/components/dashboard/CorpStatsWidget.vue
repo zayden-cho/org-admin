@@ -119,8 +119,8 @@ function showAllStats() {
     </div>
 
     <!-- 전체 통계 다이얼로그 -->
-    <Dialog v-model:visible="allStatsDialog" :style="{ width: '700px', maxHeight: '80vh' }" header="전체 법인 통계" :modal="true">
-        <div class="flex flex-col gap-4 max-h-96 overflow-y-auto">
+    <Dialog v-model:visible="allStatsDialog" :style="{ width: '700px', maxHeight: '85vh' }" header="전체 법인 통계" :modal="true">
+        <div class="flex flex-col gap-4 max-h-[600px] overflow-y-auto">
             <div v-for="(stat, index) in corpStats" :key="index" class="flex items-center justify-between p-4 border border-surface-200 rounded-lg hover:bg-surface-50 dark:hover:bg-surface-800 transition-colors">
                 <div class="flex-1">
                     <div class="flex items-center gap-3 mb-3">
