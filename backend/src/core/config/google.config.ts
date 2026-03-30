@@ -27,6 +27,7 @@ const targetSheetId = process.env.GOOGLE_TARGET_SHEET_ID;
 const sourceSheetId = process.env.GOOGLE_SOURCE_SHEET_ID;
 const konacardSheetId = process.env.GOOGLE_KONACARD_SHEET_ID;
 const goodsSheetId = process.env.GOOGLE_GOODS_SHEET_ID;
+const eventSheetId = process.env.GOOGLE_EVENT_SHEET_ID;
 
 if (!targetSheetId) {
     throw new Error('GOOGLE_TARGET_SHEET_ID environment variable is required');
@@ -40,10 +41,13 @@ if (!konacardSheetId) {
 if (!goodsSheetId) {
     throw new Error('GOOGLE_GOODS_SHEET_ID environment variable is required');
 }
+if (!eventSheetId) {
+    throw new Error('GOOGLE_EVENT_SHEET_ID environment variable is required');
+}
 
 export const GOOGLE_SPREADSHEET_IDS = {
     // 조합원 타겟 시트
-    KREWS_TARGER: targetSheetId,
+    KREWS_TARGET: targetSheetId,
 
     // 조합원 원본 시트
     KREWS_SOURCE: sourceSheetId,
@@ -53,4 +57,7 @@ export const GOOGLE_SPREADSHEET_IDS = {
 
     // 굿즈 시트
     GOODS: goodsSheetId,
+
+    // 행사 시트
+    EVENT: eventSheetId,
 } as const;

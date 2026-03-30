@@ -32,12 +32,26 @@ const router = createRouter({
                 {
                     path: '/',
                     name: 'dashboard',
-                    component: () => import('@/views/Dashboard.vue')
+                    component: () => import('@/views/Dashboard.vue'),
+                    meta: {
+                        title: '대시 보드'
+                    }
                 },
                 {
                     path: '/krews',
                     name: 'krews',
-                    component: () => import('@/views/krews/KrewsManagement.vue')
+                    component: () => import('@/views/krews/KrewsManagement.vue'),
+                    meta: {
+                        title: '조합원 목록'
+                    }
+                },
+                {
+                    path: '/events',
+                    name: 'events',
+                    component: () => import('@/views/events/EventManagement.vue'),
+                    meta: {
+                        title: '행사 목록'
+                    }
                 }
             ]
         },

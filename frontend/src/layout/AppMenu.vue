@@ -15,12 +15,22 @@ const model = ref([
         ]
     },
     {
-        label: '관리',
+        label: '조합원 관리',
         items: [
             {
                 label: '조합원 목록',
                 icon: 'pi pi-fw pi-users',
                 to: '/krews'
+            }
+        ]
+    },
+    {
+        label: '행사 관리',
+        items: [
+            {
+                label: '행사 목록',
+                icon: 'pi pi-fw pi-calendar',
+                to: '/events'
             }
         ]
     }

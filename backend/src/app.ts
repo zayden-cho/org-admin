@@ -14,6 +14,7 @@ import { apiRateLimiter, syncRateLimiter } from '@/core/middlewares/ratelimit.mi
 import { cspMiddleware, hstsMiddleware } from '@/core/middlewares/security.middleware';
 import authRouter from '@/features/auth/auth.routes';
 import calendarRouter from '@/features/calendar/calendar.routes';
+import eventsRouter from '@/features/events/events.routes';
 import krewsRouter from '@/features/krews/krews.routes';
 import syncRouter from '@/features/sync/sync.routes';
 
@@ -44,8 +45,9 @@ app.use('/api/krews/*', authMiddleware);
 app.use('/api/sync/*', authMiddleware);
 
 app.route('/api/calendar', calendarRouter);
+app.use('/api/events/*', authMiddleware);
+app.route('/api/events', eventsRouter);
 app.route('/api/krews', krewsRouter);
-
 app.use('/api/sync/*', syncRateLimiter);
 app.route('/api/sync', syncRouter);
 
