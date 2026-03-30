@@ -175,12 +175,113 @@ export class KrewsService {
     }
 
     /**
-     * ID로 조합원 조회
+     * ID로 조합원 조회 (크루유니언 시트의 기본 정보만)
      */
     async getKrewById(id: string): Promise<KrewRawData | null> {
         const result = await this.getAllKrews();
 
         return result.data.find(krew => krew.krewunionId === id) || null;
+    }
+
+    /**
+     * 법인 시트에서 조합원 상세 정보 조회
+     * @param id - 조합원 ID
+     * @param corp - 법인명 (시트명과 동일)
+     */
+    async getKrewDetailFromCorpSheet(id: string, corp: string): Promise<KrewRawData | null> {
+        try {
+            const values = await this.repository.getSheetData(corp);
+
+            if (values.length < 2) {
+                console.log(`법인 시트 "${corp}"가 비어있습니다.`);
+                return null;
+            }
+
+            const headers = values[0].map(h => String(h).trim());
+            const colIndex: Record<string, number> = {};
+
+            for (const [koreanName, englishName] of Object.entries(KREW_HEADER_MAP)) {
+                const idx = headers.indexOf(koreanName);
+                if (idx !== -1) {
+                    colIndex[englishName] = idx;
+                }
+            }
+
+            const orgChartStartIndex = headers.indexOf('조직도');
+
+            // krewunionId로 필터링
+            const krewunionIdIndex = headers.indexOf('krewunionId');
+            if (krewunionIdIndex === -1) {
+                console.log(`법인 시트 "${corp}"에 krewunionId 컬럼이 없습니다.`);
+                return null;
+            }
+
+            const targetRow = values.slice(1).find(row => {
+                return String(row[krewunionIdIndex] || '').trim() === id;
+            });
+
+            if (!targetRow) {
+                console.log(`법인 시트 "${corp}"에서 조합원 ${id}를 찾을 수 없습니다.`);
+                return null;
+            }
+
+            // 조직도 처리 (N열부터 끝까지)
+            let orgChart: string[] = [];
+            if (orgChartStartIndex !== -1 && orgChartStartIndex < targetRow.length) {
+                orgChart = targetRow.slice(orgChartStartIndex, targetRow.length)
+                    .filter(cell => cell && String(cell).trim() !== '')
+                    .map(cell => String(cell).trim());
+            }
+
+            const krew: KrewRawData = {
+                corpId: cellToString(targetRow[colIndex["corpId"]]),
+                krewunionId: cellToString(targetRow[colIndex["krewunionId"]]),
+                corp: cellToString(targetRow[colIndex["corp"]]),
+                name: cellToString(targetRow[colIndex["name"]]),
+                ldap: cellToString(targetRow[colIndex["ldap"]]),
+                phoneNumber: cellToString(targetRow[colIndex["phoneNumber"]]),
+                isCheckoff: cellToString(targetRow[colIndex["isCheckoff"]]),
+                status: cellToString(targetRow[colIndex["status"]]),
+                joinMonth: cellToString(targetRow[colIndex["joinMonth"]]),
+                chatRoomJoined: cellToString(targetRow[colIndex["chatRoomJoined"]]),
+                konacard: cellToString(targetRow[colIndex["konacard"]]),
+                konacardAppRegistered: cellToString(targetRow[colIndex["konacardAppRegistered"]]),
+                position: cellToString(targetRow[colIndex["position"]]),
+                orgChart
+            };
+
+            return krew;
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            console.error(`법인 시트 "${corp}" 조회 실패:`, errorMessage);
+            return null;
+        }
+    }
+
+    /**
+     * ID로 조합원 상세 정보 조회 (법인 시트에서)
+     * 1. 크루유니언 시트에서 corp 확인
+     * 2. 해당 법인 시트에서 상세 정보 조회
+     */
+    async getKrewDetailById(id: string): Promise<KrewRawData | null> {
+        // 1. 크루유니언 시트에서 기본 정보 조회
+        const basicInfo = await this.getKrewById(id);
+
+        if (!basicInfo) {
+            console.log(`조합원 ${id}를 크루유니언 시트에서 찾을 수 없습니다.`);
+            return null;
+        }
+
+        // 2. 법인 시트에서 상세 정보 조회
+        const detailInfo = await this.getKrewDetailFromCorpSheet(id, basicInfo.corp);
+
+        // 법인 시트에 없으면 기본 정보 반환
+        if (!detailInfo) {
+            console.warn(`법인 시트에서 조합원 ${id}를 찾을 수 없어 기본 정보를 반환합니다.`);
+            return basicInfo;
+        }
+
+        return detailInfo;
     }
 
     /**

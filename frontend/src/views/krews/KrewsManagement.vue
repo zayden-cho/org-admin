@@ -240,9 +240,29 @@ async function refreshKrews() {
     await loadKrews(true);
 }
 
-function viewKrew(krew) {
-    selectedKrew.value = { ...krew };
-    krewDialog.value = true;
+async function viewKrew(krew) {
+    try {
+        loading.value = true;
+
+        const response = await KrewsService.getKrewById(krew.krewunionId);
+
+        if (response.data.success) {
+            selectedKrew.value = response.data.data; // 법인 시트 상세 정보!
+            krewDialog.value = true;
+        } else {
+            throw new Error(response.data.error || '조합원 정보를 찾을 수 없습니다.');
+        }
+    } catch (error) {
+        console.error('조합원 상세 조회 실패:', error);
+        toast.add({
+            severity: 'error',
+            summary: '조회 실패',
+            detail: '조합원 상세 정보를 불러올 수 없습니다.',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
 }
 
 // ========================================

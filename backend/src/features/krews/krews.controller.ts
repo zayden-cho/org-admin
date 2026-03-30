@@ -66,7 +66,7 @@ export class KrewsController {
 
     /**
      * GET /api/krews/detail/:id
-     * 조합원 상세
+     * 조합원 상세 (법인 시트에서 조회)
      */
     async getKrewById(c: Context) {
         try {
@@ -79,7 +79,7 @@ export class KrewsController {
                 }, 400);
             }
 
-            const result = await krewsService.getKrewById(id);
+            const result = await krewsService.getKrewDetailById(id);
 
             if (!result) {
                 return c.json({
