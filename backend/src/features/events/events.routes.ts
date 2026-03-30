@@ -35,6 +35,18 @@ eventsRouter.get(
     (c) => eventsController.getEventApplications(c)
 );
 
+// GET /api/events/:eventId/years - 행사의 연도 목록 조회
+eventsRouter.get(
+    '/:eventId/years',
+    (c) => eventsController.getEventYears(c)
+);
+
+// GET /api/events/:eventId/statistics/:year - 행사별 통계 조회
+eventsRouter.get(
+    '/:eventId/statistics/:year',
+    (c) => eventsController.getEventStatistics(c)
+);
+
 // POST /api/events/cache/clear - 캐시 클리어
 eventsRouter.post(
     '/cache/clear',

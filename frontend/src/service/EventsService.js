@@ -35,6 +35,22 @@ export class EventsService {
     }
 
     /**
+     * 행사별 통계 조회
+     */
+    static async getEventStatistics(eventId, year, forceRefresh = false) {
+        const url = forceRefresh ? `${API_BASE_URL}/api/events/${eventId}/statistics/${year}?refresh=true` : `${API_BASE_URL}/api/events/${eventId}/statistics/${year}`;
+        return await axios.get(url);
+    }
+
+    /**
+     * 행사의 연도 목록 조회
+     */
+    static async getEventYears(eventId, forceRefresh = false) {
+        const url = forceRefresh ? `${API_BASE_URL}/api/events/${eventId}/years?refresh=true` : `${API_BASE_URL}/api/events/${eventId}/years`;
+        return await axios.get(url);
+    }
+
+    /**
      * 캐시 클리어
      */
     static async clearCache() {

@@ -48,9 +48,17 @@ const router = createRouter({
                 {
                     path: '/events',
                     name: 'events',
-                    component: () => import('@/views/events/EventManagement.vue'),
+                    component: () => import('@/views/events/EventsManagement.vue'),
                     meta: {
                         title: '행사 목록'
+                    }
+                },
+                {
+                    path: '/events/statistics',
+                    name: 'events-statistics',
+                    component: () => import('@/views/events/EventStatistics.vue'),
+                    meta: {
+                        title: '행사 통계'
                     }
                 }
             ]

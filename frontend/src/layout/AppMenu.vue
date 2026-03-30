@@ -31,6 +31,11 @@ const model = ref([
                 label: '행사 목록',
                 icon: 'pi pi-fw pi-calendar',
                 to: '/events'
+            },
+            {
+                label: '행사 통계',
+                icon: 'pi pi-fw pi-chart-bar',
+                to: '/events/statistics'
             }
         ]
     }
