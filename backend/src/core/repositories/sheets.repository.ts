@@ -13,15 +13,42 @@ export class SheetsRepository {
     constructor(config: SheetsConfig) {
         this.spreadsheetId = config.spreadsheetId;
 
-        const credentialsPath = path.resolve(
-            process.cwd(),
-            config.credentialsPath || GOOGLE_CREDENTIALS_PATH
-        );
+        let auth;
 
-        const auth = new google.auth.GoogleAuth({
-            keyFile: credentialsPath,
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
+        // 1. GOOGLE_CREDENTIALS_BASE64 환경변수 우선 (Render 배포용)
+        const credentialsBase64 = process.env.GOOGLE_CREDENTIALS_BASE64;
+
+        if (credentialsBase64) {
+            try {
+                // Base64 디코딩 후 JSON 파싱
+                const credentialsJson = Buffer.from(credentialsBase64, 'base64').toString('utf-8');
+                const credentials = JSON.parse(credentialsJson);
+
+                auth = new google.auth.GoogleAuth({
+                    credentials: credentials,
+                    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+                });
+
+                console.log('Google Sheets Auth: Using GOOGLE_CREDENTIALS_BASE64');
+            } catch (error) {
+                console.error('Failed to parse GOOGLE_CREDENTIALS_BASE64:', error);
+                throw new Error('Invalid GOOGLE_CREDENTIALS_BASE64 format');
+            }
+        }
+        // 2. 파일 경로 사용 (로컬 개발용)
+        else {
+            const credentialsPath = path.resolve(
+                process.cwd(),
+                config.credentialsPath || GOOGLE_CREDENTIALS_PATH
+            );
+
+            auth = new google.auth.GoogleAuth({
+                keyFile: credentialsPath,
+                scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+            });
+
+            console.log('Google Sheets Auth: Using credentials file:', credentialsPath);
+        }
 
         this.sheets = google.sheets({ version: 'v4', auth });
     }

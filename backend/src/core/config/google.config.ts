@@ -13,10 +13,8 @@ export const GOOGLE_CALENDAR_IDS = {
 // ========================================
 // Google Credentials Path
 // ========================================
-const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH;
-if (!credentialsPath) {
-    throw new Error('GOOGLE_CREDENTIALS_PATH environment variable is required');
-}
+// Base64 환경변수가 있으면 파일 경로는 선택 사항
+const credentialsPath = process.env.GOOGLE_CREDENTIALS_PATH || '';
 
 export const GOOGLE_CREDENTIALS_PATH = credentialsPath;
 
