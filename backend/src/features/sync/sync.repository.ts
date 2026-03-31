@@ -13,7 +13,7 @@ export class SyncRepository {
         });
 
         this.targetRepository = new SheetsRepository({
-            spreadsheetId: GOOGLE_SPREADSHEET_IDS.KREWS_TARGER,
+            spreadsheetId: GOOGLE_SPREADSHEET_IDS.KREWS_TARGET,
         });
 
         this.konacardRepository = new SheetsRepository({
@@ -51,6 +51,13 @@ export class SyncRepository {
         values: SheetData
     ): Promise<void> {
         return this.targetRepository.updateSheetData(sheetName, range, values);
+    }
+
+    async appendTargetSheetData(
+        sheetName: string,
+        values: SheetData
+    ): Promise<void> {
+        return this.targetRepository.appendSheetData(sheetName, values);
     }
 
     async clearTargetRange(sheetName: string, range: string): Promise<void> {

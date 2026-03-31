@@ -324,9 +324,9 @@ export class SyncService {
                     cellToString(item.sourceRow.cmsStatus),
                     ''
                 ]);
-                await this.repository.updateTargetSheetData(
+
+                await this.repository.appendTargetSheetData(
                     UNION_SHEET_NAME,
-                    `A${existingUnionMap.size + 2}`,
                     newRows
                 );
                 console.log('신규 추가 완료');
@@ -492,9 +492,9 @@ export class SyncService {
                         '',
                         ''
                     ]);
-                    await this.repository.updateTargetSheetData(
+
+                    await this.repository.appendTargetSheetData(
                         sheetName,
-                        `A${existingCorpMap.size + 2}`,
                         newRows
                     );
                 }
