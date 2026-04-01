@@ -374,8 +374,8 @@ watch(
                             <!-- 등록성공 -->
                             <div class="mb-3">
                                 <div class="flex justify-content-between align-items-center mb-2">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">등록성공</span>
-                                    <span class="font-bold text-green-600">{{ statistics.cmsStats?.registered || 0 }}명</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">등록성공:</span>
+                                    <span class="font-bold text-green-600">&ensp;{{ statistics.cmsStats?.registered || 0 }}명</span>
                                 </div>
                                 <ProgressBar :value="statistics.total > 0 ? Math.round((statistics.cmsStats?.registered / statistics.total) * 100) : 0" :showValue="false" class="h-2" :pt="{ value: { class: 'bg-green-500' } }" />
                             </div>
@@ -383,8 +383,8 @@ watch(
                             <!-- 안내완료 -->
                             <div class="mb-3">
                                 <div class="flex justify-content-between align-items-center mb-2">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">안내완료</span>
-                                    <span class="font-bold text-blue-600">{{ statistics.cmsStats?.notified || 0 }}명</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">안내완료:</span>
+                                    <span class="font-bold text-blue-600">&ensp;{{ statistics.cmsStats?.notified || 0 }}명</span>
                                 </div>
                                 <ProgressBar :value="statistics.total > 0 ? Math.round((statistics.cmsStats?.notified / statistics.total) * 100) : 0" :showValue="false" class="h-2" :pt="{ value: { class: 'bg-blue-500' } }" />
                             </div>
@@ -392,8 +392,8 @@ watch(
                             <!-- 일시정지 -->
                             <div class="mb-3">
                                 <div class="flex justify-content-between align-items-center mb-2">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">일시정지</span>
-                                    <span class="font-bold text-red-600">{{ statistics.cmsStats?.paused || 0 }}명</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">일시정지:</span>
+                                    <span class="font-bold text-red-600">&ensp;{{ statistics.cmsStats?.paused || 0 }}명</span>
                                 </div>
                                 <ProgressBar :value="statistics.total > 0 ? Math.round((statistics.cmsStats?.paused / statistics.total) * 100) : 0" :showValue="false" class="h-2" :pt="{ value: { class: 'bg-red-500' } }" />
                             </div>
@@ -401,8 +401,8 @@ watch(
                             <!-- 미납중 -->
                             <div class="mb-3">
                                 <div class="flex justify-content-between align-items-center mb-2">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">미납중</span>
-                                    <span class="font-bold text-yellow-600">{{ statistics.cmsStats?.unpaid || 0 }}명</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">미납중:</span>
+                                    <span class="font-bold text-yellow-600">&ensp;{{ statistics.cmsStats?.unpaid || 0 }}명</span>
                                 </div>
                                 <ProgressBar :value="statistics.total > 0 ? Math.round((statistics.cmsStats?.unpaid / statistics.total) * 100) : 0" :showValue="false" class="h-2" :pt="{ value: { class: 'bg-yellow-500' } }" />
                             </div>
@@ -417,8 +417,8 @@ watch(
                         <div class="flex-1 flex flex-col justify-center">
                             <div class="mb-4">
                                 <div class="flex justify-content-between align-items-center mb-2">
-                                    <span class="text-sm text-gray-600 dark:text-gray-400">등록</span>
-                                    <span class="font-bold">{{ statistics.konacardStats?.registered || 0 }}명 / {{ statistics.total || 0 }}명</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">등록:</span>
+                                    <span class="font-bold">&ensp;{{ statistics.konacardStats?.registered || 0 }}명 / {{ statistics.total || 0 }}명</span>
                                 </div>
                                 <ProgressBar :value="statistics.total > 0 ? Math.round((statistics.konacardStats?.registered / statistics.total) * 100) : 0" :showValue="true" />
                             </div>
