@@ -33,6 +33,14 @@ export class KrewsService {
     }
 
     /**
+     * 조합원 통계 조회
+     */
+    static async getKrewsStatistics(forceRefresh = false) {
+        const url = forceRefresh ? `${API_BASE_URL}/api/krews/statistics?refresh=true` : `${API_BASE_URL}/api/krews/statistics`;
+        return await axios.get(url);
+    }
+
+    /**
      * 전체 조합원 동기화 (원본 → 타겟)
      */
     static async syncAllKrews() {

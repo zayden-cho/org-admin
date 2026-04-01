@@ -46,6 +46,14 @@ const router = createRouter({
                     }
                 },
                 {
+                    path: '/krews/statistics',
+                    name: 'krews-statistics',
+                    component: () => import('@/views/krews/KrewsStatistics.vue'),
+                    meta: {
+                        title: '조합원 통계'
+                    }
+                },
+                {
                     path: '/events',
                     name: 'events',
                     component: () => import('@/views/events/EventsManagement.vue'),

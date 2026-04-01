@@ -2,10 +2,17 @@ import { cellToString, getErrorMessage } from '@/core/types/sheets.types';
 import { KrewsRepository } from '@/features/krews/krews.repository';
 import { KREW_HEADER_MAP, KrewRawData } from '@/features/krews/krews.types';
 
+// 법인 시트에서 가져온 완전한 조직도 포함
+interface EnrichedKrewData extends KrewRawData {
+    fullOrgChart?: string[];  // 법인 시트의 완전한 조직도
+}
+
 export class KrewsService {
     private repository: KrewsRepository;
+
+    // 통합 데이터 캐시 (크루유니언 + 법인 통합)
     private cache: {
-        data: KrewRawData[] | null;
+        data: EnrichedKrewData[] | null;
         timestamp: number;
         ttl: number;
     };
@@ -16,7 +23,7 @@ export class KrewsService {
         this.cache = {
             data: null,
             timestamp: 0,
-            ttl: 5 * 60 * 1000,
+            ttl: 5 * 60 * 1000,  // 5분
         };
     }
 
@@ -35,10 +42,10 @@ export class KrewsService {
     }
 
     /**
-     * 전체 조합원 조회
+     * 전체 조합원 조회 (통합 데이터 - 조직도 검색 가능)
      * @returns { data, fromCache }
      */
-    async getAllKrews(forceRefresh: boolean = false): Promise<{ data: KrewRawData[], fromCache: boolean }> {
+    async getAllKrews(forceRefresh: boolean = false): Promise<{ data: EnrichedKrewData[], fromCache: boolean }> {
         const isDev = process.env.NODE_ENV !== 'production';
 
         if (isDev) {
@@ -50,7 +57,7 @@ export class KrewsService {
 
         if (!forceRefresh && this.isCacheValid()) {
             if (isDev) {
-                console.log('Returning cached data! (length:', this.cache.data!.length, ')');
+                console.log('Returning cached enriched data! (length:', this.cache.data!.length, ')');
                 console.log('========================================');
             }
             return {
@@ -60,14 +67,15 @@ export class KrewsService {
         }
 
         if (isDev) {
-            console.log('Fetching from Google Sheets...');
+            console.log('Fetching and enriching data from Google Sheets...');
         }
         const startTime = Date.now();
 
         try {
-            const values = await this.repository.getSheetData('크루유니언');
+            // 1. 크루유니언 시트 로드
+            const unionValues = await this.repository.getSheetData('크루유니언');
 
-            if (values.length < 2) {
+            if (unionValues.length < 2) {
                 if (isDev) {
                     console.log('크루유니언 시트가 비어있습니다.');
                     console.log('========================================');
@@ -78,7 +86,7 @@ export class KrewsService {
                 };
             }
 
-            const headers = values[0].map(h => String(h).trim());
+            const headers = unionValues[0].map(h => String(h).trim());
             const colIndex: Record<string, number> = {};
 
             for (const [koreanName, englishName] of Object.entries(KREW_HEADER_MAP)) {
@@ -91,8 +99,8 @@ export class KrewsService {
             const orgChartStartIndex = headers.indexOf('조직도');
             const krews: KrewRawData[] = [];
 
-            for (let i = 1; i < values.length; i++) {
-                const row = values[i];
+            for (let i = 1; i < unionValues.length; i++) {
+                const row = unionValues[i];
                 if (row.every(cell => !cell || String(cell).trim() === '')) {
                     continue;
                 }
@@ -112,7 +120,7 @@ export class KrewsService {
                     ldap: cellToString(row[colIndex["ldap"]]),
                     phoneNumber: cellToString(row[colIndex["phoneNumber"]]),
                     isCheckoff: cellToString(row[colIndex["isCheckoff"]]),
-                    status: cellToString(row[colIndex["status"]]),
+                    status: cellToString(row[colIndex["status"]]),  // ← CMS 상태
                     joinMonth: cellToString(row[colIndex["joinMonth"]]),
                     chatRoomJoined: cellToString(row[colIndex["chatRoomJoined"]]),
                     konacard: cellToString(row[colIndex["konacard"]]),
@@ -124,176 +132,291 @@ export class KrewsService {
                 krews.push(krew);
             }
 
-            const sorted = krews.sort((a, b) => {
-                const aNum = parseInt(a.krewunionId.replace(/\D/g, '')) || 0;
-                const bNum = parseInt(b.krewunionId.replace(/\D/g, '')) || 0;
-                return aNum - bNum;
-            });
+            if (isDev) {
+                const elapsed = Date.now() - startTime;
+                console.log(`크루유니언 로드 완료: ${krews.length}명 (${elapsed}ms)`);
+            }
 
-            this.cache.data = sorted;
+            // 2. 법인 시트 데이터 병렬 로드 및 통합
+            const enrichedData = await this.enrichKrewsWithCorpData(krews);
+
+            // 3. 캐시 저장
+            this.cache.data = enrichedData;
             this.cache.timestamp = Date.now();
 
-            const elapsed = Date.now() - startTime;
-
             if (isDev) {
-                console.log('Data fetched and cached from 크루유니언!');
-                console.log('items:', sorted.length);
-                console.log('elapsed:', `${elapsed}ms`);
+                const elapsed = Date.now() - startTime;
+                console.log('Data fetched and enriched!');
+                console.log('items:', enrichedData.length);
+                console.log('total elapsed:', elapsed + 'ms');
                 console.log('========================================');
-            } else {
-                console.log(`Krews data fetched from 크루유니언: ${sorted.length} items in ${elapsed}ms`);
             }
 
             return {
-                data: sorted,
+                data: enrichedData,
                 fromCache: false
             };
         } catch (error) {
             const errorMessage = getErrorMessage(error);
-
-            if (isDev) {
-                console.log('크루유니언 시트 조회 실패:', errorMessage);
-                console.log('========================================');
-            } else {
-                console.log('크루유니언 시트 조회 실패. 전체조합원갱신을 먼저 실행해주세요.');
-            }
-
-            return {
-                data: [],
-                fromCache: false
-            };
+            console.error('Failed to fetch data from 크루유니언:', errorMessage);
+            throw new Error('크루유니언 시트를 불러올 수 없습니다.');
         }
     }
 
     /**
-     * 법인별 조합원 조회
+     * 법인 시트 데이터와 통합 (병렬 로딩)
      */
-    async getKrewsByCorp(corp: string): Promise<KrewRawData[]> {
-        const result = await this.getAllKrews();
+    private async enrichKrewsWithCorpData(unionData: KrewRawData[]): Promise<EnrichedKrewData[]> {
+        const isDev = process.env.NODE_ENV !== 'production';
+        const startTime = Date.now();
 
-        return result.data.filter(krew => krew.corp === corp);
-    }
+        // 법인 목록 추출
+        const corps = [...new Set(unionData.map(k => k.corp))].filter(Boolean);
 
-    /**
-     * ID로 조합원 조회 (크루유니언 시트의 기본 정보만)
-     */
-    async getKrewById(id: string): Promise<KrewRawData | null> {
-        const result = await this.getAllKrews();
+        if (isDev) {
+            console.log(`법인 시트 병렬 로딩 시작: ${corps.length}개`);
+        }
 
-        return result.data.find(krew => krew.krewunionId === id) || null;
-    }
+        // 🚀 병렬로 모든 법인 시트 로드
+        const corpDataPromises = corps.map(async (corp) => {
+            try {
+                const corpData = await this.repository.getSheetData(corp);
+                return { corp, data: corpData };
+            } catch (error) {
+                console.error(`Failed to load corp sheet: ${corp}`, error);
+                return { corp, data: [] };
+            }
+        });
 
-    /**
-     * 법인 시트에서 조합원 상세 정보 조회
-     * @param id - 조합원 ID
-     * @param corp - 법인명 (시트명과 동일)
-     */
-    async getKrewDetailFromCorpSheet(id: string, corp: string): Promise<KrewRawData | null> {
-        try {
-            const values = await this.repository.getSheetData(corp);
+        const corpDataResults = await Promise.all(corpDataPromises);
 
-            if (values.length < 2) {
-                console.log(`법인 시트 "${corp}"가 비어있습니다.`);
-                return null;
+        // Map으로 변환
+        const corpDataMap = new Map<string, any[]>();
+        corpDataResults.forEach(({ corp, data }) => {
+            corpDataMap.set(corp, data);
+        });
+
+        if (isDev) {
+            const elapsed = Date.now() - startTime;
+            console.log(`법인 시트 병렬 로딩 완료: ${corps.length}개 (${elapsed}ms)`);
+        }
+
+        // 데이터 통합
+        const enrichedData: EnrichedKrewData[] = unionData.map(krew => {
+            const corpData = corpDataMap.get(krew.corp);
+            if (!corpData || corpData.length < 2) {
+                return krew;  // 법인 시트 없으면 크루유니언 데이터만
             }
 
-            const headers = values[0].map(h => String(h).trim());
-            const colIndex: Record<string, number> = {};
+            // 법인 시트 헤더
+            const headers = corpData[0].map((h: any) => String(h).trim());
+            const krewunionIdIndex = headers.indexOf('krewunionId');
+            const orgChartStartIndex = headers.indexOf('조직도');
 
+            if (krewunionIdIndex === -1) {
+                return krew;
+            }
+
+            // krewunionId로 매칭
+            const matchedRow = corpData.slice(1).find(row =>
+                String(row[krewunionIdIndex] || '').trim() === krew.krewunionId
+            );
+
+            if (!matchedRow) {
+                return krew;
+            }
+
+            // 법인 시트의 완전한 조직도 추출
+            let fullOrgChart: string[] = [];
+            if (orgChartStartIndex !== -1 && orgChartStartIndex < matchedRow.length) {
+                fullOrgChart = matchedRow.slice(orgChartStartIndex, matchedRow.length)
+                    .filter((cell: any) => cell && String(cell).trim() !== '')
+                    .map((cell: any) => String(cell).trim());
+            }
+
+            // 법인 시트의 모든 필드로 크루유니언 데이터 업데이트
+            const enrichedKrew: any = { ...krew };
+
+            // KREW_HEADER_MAP의 모든 필드를 법인 시트에서 가져와서 업데이트
             for (const [koreanName, englishName] of Object.entries(KREW_HEADER_MAP)) {
+                // orgChart는 배열로 별도 처리하므로 스킵
+                if (englishName === 'orgChart') {
+                    continue;
+                }
+
                 const idx = headers.indexOf(koreanName);
-                if (idx !== -1) {
-                    colIndex[englishName] = idx;
+                if (idx !== -1 && matchedRow[idx] !== undefined && matchedRow[idx] !== null) {
+                    const value = cellToString(matchedRow[idx]);
+                    // 법인 시트에 값이 있으면 업데이트 (빈 문자열도 업데이트)
+                    if (value !== undefined && value !== null) {
+                        enrichedKrew[englishName] = value;
+                    }
                 }
             }
 
-            const orgChartStartIndex = headers.indexOf('조직도');
+            // orgChart는 크루유니언의 배열 유지 (변경하지 않음)
+            // fullOrgChart만 법인 시트 조직도로 설정
+            enrichedKrew.fullOrgChart = fullOrgChart.length > 0 ? fullOrgChart : krew.orgChart;
 
-            // krewunionId로 필터링
-            const krewunionIdIndex = headers.indexOf('krewunionId');
-            if (krewunionIdIndex === -1) {
-                console.log(`법인 시트 "${corp}"에 krewunionId 컬럼이 없습니다.`);
-                return null;
+            // 만약 크루유니언의 orgChart가 비어있으면 fullOrgChart로 채워주기
+            if (!enrichedKrew.orgChart || enrichedKrew.orgChart.length === 0) {
+                enrichedKrew.orgChart = enrichedKrew.fullOrgChart;
             }
 
-            const targetRow = values.slice(1).find(row => {
-                return String(row[krewunionIdIndex] || '').trim() === id;
-            });
+            return enrichedKrew;
+        });
 
-            if (!targetRow) {
-                console.log(`법인 시트 "${corp}"에서 조합원 ${id}를 찾을 수 없습니다.`);
-                return null;
+        if (isDev) {
+            const totalElapsed = Date.now() - startTime;
+            console.log(`Enrichment 완료: ${enrichedData.length}명 (${totalElapsed}ms)`);
+        }
+
+        return enrichedData;
+    }
+
+    /**
+     * 조합원 통계 조회
+     */
+    async getKrewsStatistics(forceRefresh: boolean = false): Promise<any> {
+        const isDev = process.env.NODE_ENV !== 'production';
+
+        if (isDev) {
+            console.log('조합원 통계 계산 중...');
+        }
+
+        // getAllKrews로 통합 데이터 가져오기
+        const result = await this.getAllKrews(forceRefresh);
+        const enrichedData = result.data;
+
+        // 통계 계산
+        const statistics = this.calculateStatistics(enrichedData);
+
+        if (isDev) {
+            console.log('조합원 통계 계산 완료');
+        }
+
+        return statistics;
+    }
+
+    /**
+     * 통계 계산
+     */
+    private calculateStatistics(enrichedData: EnrichedKrewData[]) {
+        // CMS 상태별 카운트 (status 필드 사용)
+        const cmsStatusCounts = {
+            registered: 0,      // 등록성공
+            unpaid: 0,          // 미납중
+            notified: 0,        // 안내완료
+            paused: 0           // 일시정지
+        };
+
+        enrichedData.forEach(krew => {
+            switch(krew.status) {
+                case '등록성공':
+                    cmsStatusCounts.registered++;
+                    break;
+                case '안내완료':
+                    cmsStatusCounts.notified++;
+                    break;
+                case '일시정지':
+                    cmsStatusCounts.paused++;
+                    break;
+                case '미납중':
+                    cmsStatusCounts.unpaid++;
+                    break;
             }
+        });
 
-            // 조직도 처리 (N열부터 끝까지)
-            let orgChart: string[] = [];
-            if (orgChartStartIndex !== -1 && orgChartStartIndex < targetRow.length) {
-                orgChart = targetRow.slice(orgChartStartIndex, targetRow.length)
-                    .filter(cell => cell && String(cell).trim() !== '')
-                    .map(cell => String(cell).trim());
+        // 1. 기본 통계
+        const total = enrichedData.length;
+        const active = cmsStatusCounts.registered + cmsStatusCounts.unpaid + cmsStatusCounts.notified;  // 재직자
+        const onLeave = cmsStatusCounts.paused;  // 휴직자
+
+        // 2. 법인별 조합원 수
+        const byCorpData = enrichedData.reduce((acc, k) => {
+            const corp = k.corp || '미정';
+            if (!acc[corp]) {
+                acc[corp] = { total: 0 };
             }
+            acc[corp].total++;
+            return acc;
+        }, {} as Record<string, { total: number }>);
 
-            const krew: KrewRawData = {
-                corpId: cellToString(targetRow[colIndex["corpId"]]),
-                krewunionId: cellToString(targetRow[colIndex["krewunionId"]]),
-                corp: cellToString(targetRow[colIndex["corp"]]),
-                name: cellToString(targetRow[colIndex["name"]]),
-                ldap: cellToString(targetRow[colIndex["ldap"]]),
-                phoneNumber: cellToString(targetRow[colIndex["phoneNumber"]]),
-                isCheckoff: cellToString(targetRow[colIndex["isCheckoff"]]),
-                status: cellToString(targetRow[colIndex["status"]]),
-                joinMonth: cellToString(targetRow[colIndex["joinMonth"]]),
-                chatRoomJoined: cellToString(targetRow[colIndex["chatRoomJoined"]]),
-                konacard: cellToString(targetRow[colIndex["konacard"]]),
-                konacardAppRegistered: cellToString(targetRow[colIndex["konacardAppRegistered"]]),
-                position: cellToString(targetRow[colIndex["position"]]),
-                orgChart
+        const byCorp = Object.entries(byCorpData)
+            .map(([corp, data]) => ({
+                corp,
+                total: data.total
+            }))
+            .sort((a, b) => b.total - a.total);
+
+        // 3. 체크오프 대상 분포
+        const byCheckoff = enrichedData.reduce((acc, k) => {
+            const checkoff = k.isCheckoff || '미정';
+            acc[checkoff] = (acc[checkoff] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        // 4. 조합원방 참여율
+        const chatRoomStats = {
+            joined: enrichedData.filter(k => k.chatRoomJoined === 'Y').length,
+            notJoined: enrichedData.filter(k => !k.chatRoomJoined || k.chatRoomJoined === 'N').length
+        };
+
+        // 5. 코나카드 등록률
+        const konacardStats = {
+            registered: enrichedData.filter(k => k.konacard && k.konacard.trim() !== '').length,
+            notRegistered: enrichedData.filter(k => !k.konacard || k.konacard.trim() === '').length
+        };
+
+        // 6. 가입월별 분포
+        const byJoinMonth = enrichedData.reduce((acc, k) => {
+            const month = k.joinMonth || '미정';
+            acc[month] = (acc[month] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const joinMonthDistribution = Object.entries(byJoinMonth)
+            .map(([month, count]) => ({ month, count }))
+            .filter(item => item.month !== '미정')
+            .sort((a, b) => a.month.localeCompare(b.month));
+
+        // 7. 법인별 코나카드 등록률
+        const konacardByCorp = Object.entries(byCorpData).map(([corp]) => {
+            const corpKrews = enrichedData.filter(k => k.corp === corp);
+            const registered = corpKrews.filter(k => k.konacard && k.konacard.trim() !== '').length;
+            const notRegistered = corpKrews.filter(k => !k.konacard || k.konacard.trim() === '').length;
+
+            return {
+                corp,
+                registered,
+                notRegistered,
+                rate: corpKrews.length > 0 ? Math.round((registered / corpKrews.length) * 100) : 0
             };
-
-            return krew;
-        } catch (error) {
-            const errorMessage = getErrorMessage(error);
-            console.error(`법인 시트 "${corp}" 조회 실패:`, errorMessage);
-            return null;
-        }
-    }
-
-    /**
-     * ID로 조합원 상세 정보 조회 (법인 시트에서)
-     * 1. 크루유니언 시트에서 corp 확인
-     * 2. 해당 법인 시트에서 상세 정보 조회
-     */
-    async getKrewDetailById(id: string): Promise<KrewRawData | null> {
-        // 1. 크루유니언 시트에서 기본 정보 조회
-        const basicInfo = await this.getKrewById(id);
-
-        if (!basicInfo) {
-            console.log(`조합원 ${id}를 크루유니언 시트에서 찾을 수 없습니다.`);
-            return null;
-        }
-
-        // 2. 법인 시트에서 상세 정보 조회
-        const detailInfo = await this.getKrewDetailFromCorpSheet(id, basicInfo.corp);
-
-        // 법인 시트에 없으면 기본 정보 반환
-        if (!detailInfo) {
-            console.warn(`법인 시트에서 조합원 ${id}를 찾을 수 없어 기본 정보를 반환합니다.`);
-            return basicInfo;
-        }
-
-        return detailInfo;
-    }
-
-    /**
-     * 캐시 강제 갱신
-     */
-    async syncKrews(): Promise<{ success: boolean; updated: number }> {
-        const result = await this.getAllKrews(true);
+        }).sort((a, b) => b.rate - a.rate);
 
         return {
-            success: true,
-            updated: result.data.length,
+            total,
+            active,
+            onLeave,
+            cmsStats: cmsStatusCounts,
+            byCorp,
+            byCheckoff,
+            chatRoomStats,
+            konacardStats,
+            joinMonthDistribution,
+            konacardByCorp
         };
+    }
+
+    // 기존 메서드들은 그대로 유지
+    async getKrewById(id: string): Promise<EnrichedKrewData | null> {
+        const result = await this.getAllKrews();
+        return result.data.find(krew => krew.krewunionId === id) || null;
+    }
+
+    async getKrewDetailById(id: string): Promise<EnrichedKrewData | null> {
+        // getAllKrews가 이미 통합 데이터를 반환하므로
+        return this.getKrewById(id);
     }
 }
 

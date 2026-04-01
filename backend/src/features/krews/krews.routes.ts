@@ -36,4 +36,11 @@ krewsRouter.get(
 // POST /api/krews/sync
 krewsRouter.post('/sync', (c) => krewsController.syncKrews(c));
 
+// GET /api/krews/statistics?refresh=true
+krewsRouter.get(
+    '/statistics',
+    zValidator('query', GetAllKrewsQuerySchema),
+    (c) => krewsController.getKrewsStatistics(c)
+);
+
 export default krewsRouter;

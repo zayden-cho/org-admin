@@ -21,6 +21,11 @@ const model = ref([
                 label: '조합원 목록',
                 icon: 'pi pi-fw pi-users',
                 to: '/krews'
+            },
+            {
+                label: '조합원 통계',
+                icon: 'pi pi-fw pi-chart-line',
+                to: '/krews/statistics'
             }
         ]
     },

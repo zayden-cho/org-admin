@@ -125,6 +125,31 @@ export class KrewsController {
             }, 500);
         }
     }
+
+    /**
+     * GET /api/krews/statistics?refresh=true
+     * 조합원 통계
+     */
+    async getKrewsStatistics(c: Context) {
+        try {
+            const forceRefresh = c.req.query('refresh') === 'true';
+
+            const result = await krewsService.getKrewsStatistics(forceRefresh);
+
+            return c.json({
+                success: true,
+                data: result,
+                timestamp: new Date().toISOString(),
+            });
+        } catch (error) {
+            console.error('Get krews statistics error:', error);
+
+            return c.json({
+                success: false,
+                error: '조합원 통계를 가져올 수 없습니다.',
+            }, 500);
+        }
+    }
 }
 
 export const krewsController = new KrewsController();
