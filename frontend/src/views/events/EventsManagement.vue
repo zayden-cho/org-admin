@@ -116,6 +116,30 @@ const refresh = () => {
 };
 
 /**
+ * 캐시 클리어
+ */
+const clearCache = async () => {
+    try {
+        await EventsService.clearCache();
+        toast.add({
+            severity: 'success',
+            summary: '캐시 클리어',
+            detail: '캐시가 클리어되었습니다.',
+            life: 3000
+        });
+        await loadEvents(true);
+    } catch (error) {
+        console.error('Failed to clear cache:', error);
+        toast.add({
+            severity: 'error',
+            summary: '오류',
+            detail: '캐시 클리어 실패',
+            life: 3000
+        });
+    }
+};
+
+/**
  * 일정 상태 태그 색상
  */
 const getScheduleStatusSeverity = (status) => {
@@ -149,6 +173,7 @@ onMounted(() => {
         <div class="flex align-items-center gap-3 mb-4" style="align-items: center">
             <div class="font-semibold text-xl" style="line-height: 1; margin: 0">Filtering</div>
             <Button label="Refresh" icon="pi pi-refresh" severity="success" size="small" text @click="refresh" :loading="loading" />
+            <Button label="Clear" icon="pi pi-filter-slash" severity="secondary" size="small" text @click="clearCache" />
         </div>
 
         <!-- 행사 버튼 목록 -->
@@ -158,15 +183,15 @@ onMounted(() => {
                 <Button
                     v-for="event in events"
                     :key="event.eventId"
-                    :label="event.이름"
+                    :label="event.name"
                     :outlined="selectedEvent?.eventId !== event.eventId"
                     :severity="selectedEvent?.eventId === event.eventId ? 'primary' : 'secondary'"
                     size="small"
                     @click="selectEvent(event)"
                 >
                     <template #default>
-                        <span class="font-medium">{{ event.이름 }}</span>
-                        <Tag :value="event.유형" size="small" :severity="event.유형 === '정기' ? 'success' : 'info'" class="ml-2" />
+                        <span class="font-medium">{{ event.name }}</span>
+                        <Tag :value="event.type" size="small" :severity="event.type === '정기' ? 'success' : 'info'" class="ml-2" />
                     </template>
                 </Button>
             </div>
@@ -175,7 +200,7 @@ onMounted(() => {
         <!-- 일정 목록 -->
         <div v-if="selectedEvent">
             <div class="flex align-items-center gap-2 mb-3" style="align-items: center">
-                <div class="font-semibold text-lg text-700" style="line-height: 1; margin-top: 1.5rem; margin-bottom: 1rem">{{ selectedEvent.이름 }} - 전체 일정</div>
+                <div class="font-semibold text-lg text-700" style="line-height: 1; margin-top: 1rem; margin-bottom: 1rem">{{ selectedEvent.name }} - 전체 일정</div>
                 <Tag :value="`${schedules.length}개`" severity="info" />
             </div>
 
@@ -193,17 +218,17 @@ onMounted(() => {
                     </template>
                 </Column>
 
-                <Column field="행사일" header="행사일" :sortable="true" style="width: 110px">
+                <Column field="eventDate" header="행사일" :sortable="true" style="width: 110px">
                     <template #body="{ data }">
-                        <span class="font-semibold">{{ formatDate(data.행사일) }}</span>
+                        <span class="font-semibold">{{ formatDate(data.eventDate) }}</span>
                     </template>
                 </Column>
 
-                <Column field="장소" header="장소" style="width: 220px">
+                <Column field="location" header="장소" style="width: 220px">
                     <template #body="{ data }">
                         <div class="text-600">
                             <i class="pi pi-map-marker mr-1 text-xs text-500"></i>
-                            {{ data.장소 }}
+                            {{ data.location }}
                         </div>
                     </template>
                 </Column>
@@ -211,16 +236,16 @@ onMounted(() => {
                 <Column header="신청 기간" style="width: 220px">
                     <template #body="{ data }">
                         <div class="text-xs text-600">
-                            {{ formatDate(data.참가_신청_시작일) }}
+                            {{ formatDate(data.registrationStartDate) }}
                             <br />
-                            ~ {{ formatDate(data.참가_신청_마감일) }}
+                            ~ {{ formatDate(data.registrationEndDate) }}
                         </div>
                     </template>
                 </Column>
 
                 <Column header="정원" style="width: 70px">
                     <template #body="{ data }">
-                        <span class="font-semibold">{{ data.정원 }}명</span>
+                        <span class="font-semibold">{{ data.capacity }}명</span>
                     </template>
                 </Column>
 
@@ -228,7 +253,7 @@ onMounted(() => {
                     <template #body="{ data }">
                         <div class="flex align-items-center gap-1">
                             <i class="pi pi-users text-xs text-500"></i>
-                            <span class="font-semibold" :class="data.신청자_수 >= data.정원 ? 'text-red-500' : 'text-primary'"> {{ data.신청자_수 }}명 </span>
+                            <span class="font-semibold" :class="data.applicantCount >= data.capacity ? 'text-red-500' : 'text-primary'"> {{ data.applicantCount }}명 </span>
                         </div>
                     </template>
                 </Column>
@@ -236,17 +261,17 @@ onMounted(() => {
                 <Column header="모집률" style="width: 100px">
                     <template #body="{ data }">
                         <div>
-                            <div class="text-xs text-500 mb-1">{{ Math.round((data.신청자_수 / data.정원) * 100) }}%</div>
+                            <div class="text-xs text-500 mb-1">{{ Math.round((data.applicantCount / data.capacity) * 100) }}%</div>
                             <div class="w-full bg-gray-200 border-round" style="height: 4px">
-                                <div class="bg-primary border-round" style="height: 4px" :style="{ width: `${Math.min((data.신청자_수 / data.정원) * 100, 100)}%` }"></div>
+                                <div class="bg-primary border-round" style="height: 4px" :style="{ width: `${Math.min((data.applicantCount / data.capacity) * 100, 100)}%` }"></div>
                             </div>
                         </div>
                     </template>
                 </Column>
 
-                <Column field="상태" header="상태" style="width: 90px">
+                <Column field="status" header="상태" style="width: 90px">
                     <template #body="{ data }">
-                        <Tag :value="data.상태" :severity="getScheduleStatusSeverity(data.상태)" />
+                        <Tag :value="data.status" :severity="getScheduleStatusSeverity(data.status)" />
                     </template>
                 </Column>
 

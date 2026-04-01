@@ -6,8 +6,6 @@ import { useToast } from 'primevue/usetoast';
 import { EventsService } from '@/service/EventsService';
 import { KrewsService } from '@/service/KrewsService';
 
-const toast = useToast();
-
 const props = defineProps({
     event: {
         type: Object,
@@ -161,8 +159,8 @@ onMounted(() => {
     <Dialog v-model:visible="dialogVisible" :style="{ width: '1000px' }" :modal="true" class="event-detail-dialog">
         <template #header>
             <div v-if="event && schedule" class="flex align-items-center gap-2">
-                <div class="font-semibold text-xl" style="line-height: 1; margin: 0">{{ event.이름 }} - 참여명단</div>
-                <Tag :value="formatDate(schedule.행사일)" severity="info" size="small" />
+                <div class="font-semibold text-xl" style="line-height: 1; margin: 0">{{ event.name }} - 참여명단</div>
+                <Tag :value="formatDate(schedule.eventDate)" severity="info" size="small" />
                 <Tag :value="`${applications.length}명`" severity="success" size="small" />
             </div>
         </template>
@@ -177,14 +175,14 @@ onMounted(() => {
                             <label class="text-500 text-sm mb-2 block" style="font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem">장소</label>
                             <div class="font-semibold mt-2">
                                 <i class="pi pi-map-marker mr-1 text-xs text-500"></i>
-                                {{ schedule.장소 }}
+                                {{ schedule.location }}
                             </div>
                         </td>
                         <!-- 상태 (오른쪽, 좁게) -->
                         <td style="width: 34%; padding: 0.5rem; vertical-align: top">
                             <label class="text-500 text-sm mb-2 block" style="font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem">상태</label>
                             <div class="mt-2">
-                                <Tag :value="schedule.상태" :severity="getScheduleStatusSeverity(schedule.상태)" />
+                                <Tag :value="schedule.status" :severity="getScheduleStatusSeverity(schedule.status)" />
                             </div>
                         </td>
                     </tr>
@@ -192,14 +190,14 @@ onMounted(() => {
                         <!-- 신청 기간 (왼쪽, 넓게) -->
                         <td style="width: 66%; padding: 0.5rem; padding-top: 1rem; vertical-align: top">
                             <label class="text-500 text-sm mb-2 block" style="font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem">신청 기간</label>
-                            <div class="text-600 mt-2">{{ formatDate(schedule.참가_신청_시작일) }} ~ {{ formatDate(schedule.참가_신청_마감일) }}</div>
+                            <div class="text-600 mt-2">{{ formatDate(schedule.registrationStartDate) }} ~ {{ formatDate(schedule.registrationEndDate) }}</div>
                         </td>
                         <!-- 정원/신청자 (오른쪽, 좁게) -->
                         <td style="width: 34%; padding: 0.5rem; padding-top: 1rem; vertical-align: top">
                             <label class="text-500 text-sm mb-2 block" style="font-weight: 600; border-bottom: 1px solid #ddd; padding-bottom: 0.25rem">정원 / 신청자</label>
                             <div class="font-semibold mt-2">
-                                {{ schedule.정원 }}명 /
-                                <span :class="schedule.신청자_수 >= schedule.정원 ? 'text-red-500' : 'text-primary'"> {{ schedule.a }}명 </span>
+                                {{ schedule.capacity }}명 /
+                                <span :class="schedule.applicantCount >= schedule.capacity ? 'text-red-500' : 'text-primary'"> {{ schedule.applicantCount }}명 </span>
                             </div>
                         </td>
                     </tr>
@@ -245,21 +243,21 @@ onMounted(() => {
                             <template #body="{ data }"> {{ data.month }}월 </template>
                         </Column>
 
-                        <Column field="상태" header="상태" style="min-width: 80px">
+                        <Column field="status" header="상태" style="min-width: 80px">
                             <template #body="{ data }">
-                                <Tag :value="data.상태" :severity="getApplicationStatusSeverity(data.상태)" />
+                                <Tag :value="data.status" :severity="getApplicationStatusSeverity(data.status)" />
                             </template>
                         </Column>
 
-                        <Column field="신청일" header="신청일" style="min-width: 100px">
+                        <Column field="applicationDate" header="신청일" style="min-width: 100px">
                             <template #body="{ data }">
-                                {{ formatDate(data.신청일) }}
+                                {{ formatDate(data.applicationDate) }}
                             </template>
                         </Column>
 
-                        <Column field="메모" header="메모" style="min-width: 150px">
+                        <Column field="notes" header="메모" style="min-width: 150px">
                             <template #body="{ data }">
-                                <span class="text-600 text-sm">{{ data.메모 || '-' }}</span>
+                                <span class="text-600 text-sm">{{ data.notes || '-' }}</span>
                             </template>
                         </Column>
                     </DataTable>

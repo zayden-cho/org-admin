@@ -1,63 +1,56 @@
-// 행사목록 (Sheet 1)
 export interface Event {
     eventId: string;
     spreadsheetId: string;
-    이름: string;
-    유형: string;
-    주기: string;
+    name: string;
+    type: string;
+    cycle: string;
     createdAt: string;
 }
 
-// 행사일정 (Sheet 2)
 export interface EventSchedule {
     scheduleId: string;
     eventId: string;
-    행사일: string;
-    장소: string;
-    참가_신청_시작일: string;
-    참가_신청_마감일: string;
-    정원: number;
-    신청자_수: number;
-    상태: string;
+    eventDate: string;
+    location: string;
+    registrationStartDate: string;
+    registrationEndDate: string;
+    capacity: number;
+    applicantCount: number;
+    status: string;
     createdAt: string;
 }
 
-// 행사통계 (Sheet 3)
 export interface EventUserStats {
     krewId: string;
     eventId: string;
     year: string;
-    참여횟수: number;
-    최근참여일: string;
+    participationCount: number;
+    lastParticipationDate: string;
 }
 
 // ========== 행사 상세 DB ==========
-
-// 참여통계 (Sheet 1)
 export interface EventMonthlyStats {
     year: string;
     month: string;
-    응답인원: number;
-    신청인원: number;
-    취소인원: number;
-    실제_참석인원: number;
-    노쇼인원: number;
-    평균참여율: string;
+    responseCount: number;
+    applicantCount: number;
+    cancelCount: number;
+    attendeeCount: number;
+    noShowCount: number;
+    averageAttendanceRate: string;
 }
 
-// 2026/2025 (Sheet 2/3)
 export interface EventApplication {
-    recordId: string;  // ✅ applicationId → recordId
+    recordId: string;
     scheduleId: string;
     month: string;
     krewId: string;
-    상태: string;
-    신청일: string;
-    메모: string;
+    status: string;
+    applicationDate: string;
+    notes: string;
 }
 
 // ========== API 응답 타입 ==========
-
 export interface EventsResponse {
     success: boolean;
     data?: Event[];
@@ -89,7 +82,6 @@ export interface EventApplicationsResponse {
 }
 
 // ========== 유틸리티 타입 ==========
-
 export interface EventWithSchedules extends Event {
     nextSchedule?: EventSchedule;
     totalParticipants?: number;

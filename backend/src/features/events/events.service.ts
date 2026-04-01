@@ -1,8 +1,5 @@
-// import type { SheetData } from '@/core/types/sheets.types';
 import { createEventRepository, eventMasterRepository } from '@/features/events/events.repository';
-// import type { Event, EventSchedule, EventApplication, EventUserStats, EventWithSchedules, SyncRequest, SyncResult } from '@/features/events/events.types';
 import type { Event, EventSchedule, EventApplication, EventUserStats, EventWithSchedules } from '@/features/events/events.types';
-// import { krewsRepository } from '@/features/krews/krews.repository';
 
 /**
  * 행사 관리 서비스
@@ -89,12 +86,12 @@ export class EventsService {
 
             // 다음 일정 찾기 (오늘 이후 가장 가까운 일정)
             const nextSchedule = eventSchedules
-                .filter(s => s.행사일 >= today)
-                .sort((a, b) => a.행사일.localeCompare(b.행사일))[0];
+                .filter(s => s.eventDate >= today)
+                .sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
 
             // 총 참여자 수 (최근 일정의 신청자 수)
             const totalParticipants = eventSchedules.length > 0
-                ? eventSchedules.reduce((sum, s) => sum + s.신청자_수, 0) / eventSchedules.length
+                ? eventSchedules.reduce((sum, s) => sum + s.applicantCount, 0) / eventSchedules.length
                 : 0;
 
             return {
@@ -182,7 +179,7 @@ export class EventsService {
             }
         }
 
-        console.log(`Fetching applications for ${event.이름} ${year}...`);
+        console.log(`Fetching applications for ${event.name} ${year}...`);
         const repository = createEventRepository(event.spreadsheetId);
         const applications = await repository.getApplications(year);
 
@@ -201,21 +198,21 @@ export class EventsService {
         eventId: string;
         eventName: string;
         year: string;
-        총신청인원: number;
-        참석인원: number;
-        취소인원: number;
-        노쇼인원: number;
-        참석률: number;
-        취소율: number;
-        노쇼율: number;
-        상태별분포: Record<string, number>;
-        월별통계: Array<{
+        totalApplied: number;
+        totalAttended: number;
+        totalCancelled: number;
+        totalNoShow: number;
+        attendanceRate: number;
+        cancellationRate: number;
+        noShowRate: number;
+        byStatus: Record<string, number>;
+        monthlyStats: Array<{
             month: string;
-            신청: number;
-            참석: number;
-            취소: number;
-            노쇼: number;
-            참석률: number;
+            applied: number;
+            attended: number;
+            cancelled: number;
+            noShow: number;
+            attendanceRate: number;
         }>;
     }> {
         const cacheKey = `statistics:${eventId}:${year}`;
@@ -240,66 +237,66 @@ export class EventsService {
         const applications = await this.getEventApplications(eventId, year, forceRefresh);
 
         // 상태별 집계
-        const 상태별분포: Record<string, number> = {};
+        const byStatus: Record<string, number> = {};
         applications.forEach(app => {
-            const 상태 = app.상태 || '미정';
-            상태별분포[상태] = (상태별분포[상태] || 0) + 1;
+            const status = app.status || '미정';
+            byStatus[status] = (byStatus[status] || 0) + 1;
         });
 
         // 기본 통계
-        const 총신청인원 = applications.length;
-        const 참석인원 = 상태별분포['참석'] || 0;
-        const 취소인원 = 상태별분포['신청취소'] || 0;
-        const 노쇼인원 = 상태별분포['노쇼'] || 0;
+        const totalApplied = applications.length;
+        const totalAttended = byStatus['참석'] || 0;
+        const totalCancelled = byStatus['신청취소'] || 0;
+        const totalNoShow = byStatus['노쇼'] || 0;
 
-        const 참석률 = 총신청인원 > 0 ? Math.round((참석인원 / 총신청인원) * 100 * 100) / 100 : 0;
-        const 취소율 = 총신청인원 > 0 ? Math.round((취소인원 / 총신청인원) * 100 * 100) / 100 : 0;
-        const 노쇼율 = 총신청인원 > 0 ? Math.round((노쇼인원 / 총신청인원) * 100 * 100) / 100 : 0;
+        const attendanceRate = totalApplied > 0 ? Math.round((totalAttended / totalApplied) * 100 * 100) / 100 : 0;
+        const cancellationRate = totalApplied > 0 ? Math.round((totalCancelled / totalApplied) * 100 * 100) / 100 : 0;
+        const noShowRate = totalApplied > 0 ? Math.round((totalNoShow / totalApplied) * 100 * 100) / 100 : 0;
 
         // 월별 통계
-        const 월별데이터: Record<string, { 신청: number; 참석: number; 취소: number; 노쇼: number }> = {};
+        const monthlyData: Record<string, { applied: number; attended: number; cancelled: number; noShow: number }> = {};
 
         applications.forEach(app => {
             const month = app.month;
-            if (!월별데이터[month]) {
-                월별데이터[month] = { 신청: 0, 참석: 0, 취소: 0, 노쇼: 0 };
+            if (!monthlyData[month]) {
+                monthlyData[month] = { applied: 0, attended: 0, cancelled: 0, noShow: 0 };
             }
 
-            월별데이터[month].신청++;
+            monthlyData[month].applied++;
 
-            if (app.상태 === '참석') {
-                월별데이터[month].참석++;
-            } else if (app.상태 === '신청취소') {
-                월별데이터[month].취소++;
-            } else if (app.상태 === '노쇼') {
-                월별데이터[month].노쇼++;
+            if (app.status === '참석') {
+                monthlyData[month].attended++;
+            } else if (app.status === '신청취소') {
+                monthlyData[month].cancelled++;
+            } else if (app.status === '노쇼') {
+                monthlyData[month].noShow++;
             }
         });
 
-        const 월별통계 = Object.entries(월별데이터)
+        const monthlyStats = Object.entries(monthlyData)
             .map(([month, data]) => ({
                 month,
-                신청: data.신청,
-                참석: data.참석,
-                취소: data.취소,
-                노쇼: data.노쇼,
-                참석률: data.신청 > 0 ? Math.round((data.참석 / data.신청) * 100 * 100) / 100 : 0
+                applied: data.applied,
+                attended: data.attended,
+                cancelled: data.cancelled,
+                noShow: data.noShow,
+                attendanceRate: data.applied > 0 ? Math.round((data.attended / data.applied) * 100 * 100) / 100 : 0
             }))
             .sort((a, b) => a.month.localeCompare(b.month));
 
         const statistics = {
             eventId,
-            eventName: event.이름,
+            eventName: event.name,
             year,
-            총신청인원,
-            참석인원,
-            취소인원,
-            노쇼인원,
-            참석률,
-            취소율,
-            노쇼율,
-            상태별분포,
-            월별통계
+            totalApplied,
+            totalAttended,
+            totalCancelled,
+            totalNoShow,
+            attendanceRate,
+            cancellationRate,
+            noShowRate,
+            byStatus,
+            monthlyStats
         };
 
         this.setCache(cacheKey, statistics);
@@ -339,36 +336,6 @@ export class EventsService {
         this.setCache(cacheKey, years);
         return years;
     }
-
-    // /**
-    //  * GAS 폼에서 데이터 싱크 (나중에 구현)
-    //  */
-    // async syncEventApplications(request: SyncRequest): Promise<SyncResult> {
-    //     const { eventId, sourceSpreadsheetId, sourceSheetName, targetMonth } = request;
-    //
-    //     console.log(`Syncing applications for event ${eventId}, month ${targetMonth}...`);
-    //
-    //     // 1. 행사 정보 확인
-    //     const event = await this.getEventById(eventId);
-    //     if (!event) {
-    //         throw new Error('행사를 찾을 수 없습니다');
-    //     }
-    //
-    //     // TODO: Phase 2에서 구현
-    //     // - GAS 임시 시트 읽기
-    //     // - 조합원 검증
-    //     // - 중복 체크
-    //     // - 배치 추가
-    //     // - 통계 업데이트
-    //
-    //     // 임시 응답
-    //     return {
-    //         total: 0,
-    //         added: 0,
-    //         duplicates: 0,
-    //         errors: 0
-    //     };
-    // }
 }
 
 export const eventsService = new EventsService(

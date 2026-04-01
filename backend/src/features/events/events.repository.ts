@@ -17,9 +17,9 @@ export class EventRepository extends SheetsRepository {
         return data.slice(1).map(row => ({
             eventId: String(row[0] || ''),
             spreadsheetId: String(row[1] || ''),
-            이름: String(row[2] || ''),
-            유형: String(row[3] || ''),
-            주기: String(row[4] || ''),
+            name: String(row[2] || ''),
+            type: String(row[3] || ''),
+            cycle: String(row[4] || ''),
             createdAt: String(row[5] || '')
         }));
     }
@@ -42,13 +42,13 @@ export class EventRepository extends SheetsRepository {
         const schedules = data.slice(1).map(row => ({
             scheduleId: String(row[0] || ''),
             eventId: String(row[1] || ''),
-            행사일: String(row[2] || ''),
-            장소: String(row[3] || ''),
-            참가_신청_시작일: String(row[4] || ''),
-            참가_신청_마감일: String(row[5] || ''),
-            정원: Number(row[6] || 0),
-            신청자_수: Number(row[7] || 0),
-            상태: String(row[8] || ''),
+            eventDate: String(row[2] || ''),
+            location: String(row[3] || ''),
+            registrationStartDate: String(row[4] || ''),
+            registrationEndDate: String(row[5] || ''),
+            capacity: Number(row[6] || 0),
+            applicantCount: Number(row[7] || 0),
+            status: String(row[8] || ''),
             createdAt: String(row[9] || '')
         }));
 
@@ -70,8 +70,8 @@ export class EventRepository extends SheetsRepository {
             krewId: String(row[0] || ''),
             eventId: String(row[1] || ''),
             year: String(row[2] || ''),
-            참여횟수: Number(row[3] || 0),
-            최근참여일: String(row[4] || '')
+            participationCount: Number(row[3] || 0),
+            lastParticipationDate: String(row[4] || '')
         }));
 
         if (krewId) {
@@ -132,13 +132,13 @@ export class EventRepository extends SheetsRepository {
         const newRow = [
             scheduleId,
             schedule.eventId,
-            schedule.행사일,
-            schedule.장소,
-            schedule.참가_신청_시작일,
-            schedule.참가_신청_마감일,
-            schedule.정원,
-            schedule.신청자_수,
-            schedule.상태,
+            schedule.eventDate,
+            schedule.location,
+            schedule.registrationStartDate,
+            schedule.registrationEndDate,
+            schedule.capacity,
+            schedule.applicantCount,
+            schedule.status,
             createdAt
         ];
 
@@ -162,27 +162,27 @@ export class EventApplicationRepository extends SheetsRepository {
             scheduleId: String(row[1] || ''),
             month: String(row[2] || ''),
             krewId: String(row[3] || ''),
-            상태: String(row[4] || ''),
-            신청일: String(row[5] || ''),
-            메모: String(row[6] || '')
+            status: String(row[4] || ''),
+            applicationDate: String(row[5] || ''),
+            notes: String(row[6] || '')
         }));
     }
 
     /**
      * 참가 신청 추가
      */
-    async addApplication(year: string, application: Omit<EventApplication, 'recordId' | '신청일'>): Promise<void> {
+    async addApplication(year: string, application: Omit<EventApplication, 'recordId' | 'applicationDate'>): Promise<void> {
         const recordId = `REC${Date.now()}`;
-        const 신청일 = new Date().toISOString().split('T')[0];
+        const applicationDate = new Date().toISOString().split('T')[0];
 
         const newRow = [
             recordId,
             application.scheduleId,
             application.month,
             application.krewId,
-            application.상태,
-            신청일,
-            application.메모 || ''
+            application.status,
+            applicationDate,
+            application.notes || ''
         ];
 
         await this.appendSheetData(year, [newRow]);
@@ -205,12 +205,12 @@ export class EventApplicationRepository extends SheetsRepository {
         return data.slice(1).map(row => ({
             year: String(row[0] || ''),
             month: String(row[1] || ''),
-            응답인원: Number(row[2] || 0),
-            신청인원: Number(row[3] || 0),
-            취소인원: Number(row[4] || 0),
-            실제_참석인원: Number(row[5] || 0),
-            노쇼인원: Number(row[6] || 0),
-            평균참여율: String(row[7] || '0%')
+            responseCount: Number(row[2] || 0),
+            applicantCount: Number(row[3] || 0),
+            cancelCount: Number(row[4] || 0),
+            attendeeCount: Number(row[5] || 0),
+            noShowCount: Number(row[6] || 0),
+            averageAttendanceRate: String(row[7] || '0%')
         }));
     }
 }
