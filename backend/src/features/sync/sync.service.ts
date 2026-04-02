@@ -11,17 +11,20 @@ export class SyncService {
         this.repository = new SyncRepository();
     }
 
+    /**
+     * 전체 조합원 갱신
+     */
     async syncAllKrews(): Promise<{ success: boolean; message: string; count?: number }> {
         try {
-            const result = await this.processKrews(null);
+            const result = await this.processKrews();
 
             return {
                 success: true,
-                message: '전체 갱신이 완료되었습니다.',
+                message: '전체 조합원 갱신이 완료되었습니다.',
                 count: result.totalKrews
             };
         } catch (error) {
-            console.error('전체 갱신 오류:', error);
+            console.error('전체 조합원 갱신 오류:', error);
             return {
                 success: false,
                 message: `오류: ${getErrorMessage(error)}`,
@@ -29,21 +32,20 @@ export class SyncService {
         }
     }
 
-    async syncCorpKrews(corp: string): Promise<{ success: boolean; message: string; count?: number }> {
+    /**
+     * 전체 코나카드 갱신
+     */
+    async syncAllKonacards(): Promise<{ success: boolean; message: string; count?: number }> {
         try {
-            if (!corp) {
-                throw new Error('법인을 선택해주세요.');
-            }
-
-            const result = await this.processKrews(corp.trim());
+            const result = await this.processKonacards();
 
             return {
                 success: true,
-                message: `"${corp}" 갱신이 완료되었습니다.`,
-                count: result.totalKrews
+                message: '전체 코나카드 갱신이 완료되었습니다.',
+                count: result.totalUpdated
             };
         } catch (error) {
-            console.error('법인 갱신 오류:', error);
+            console.error('전체 코나카드 갱신 오류:', error);
             return {
                 success: false,
                 message: `오류: ${getErrorMessage(error)}`,
@@ -51,27 +53,10 @@ export class SyncService {
         }
     }
 
-    async syncCorpKonacards(corp: string): Promise<{ success: boolean; message: string }> {
-        try {
-            if (!corp) {
-                throw new Error('법인을 선택해주세요.');
-            }
-
-            await this.processKonacards(corp.trim());
-            return {
-                success: true,
-                message: `"${corp}" 코나카드 갱신이 완료되었습니다.`,
-            };
-        } catch (error) {
-            console.error('코나카드 갱신 오류:', error);
-            return {
-                success: false,
-                message: `오류: ${getErrorMessage(error)}`,
-            };
-        }
-    }
-
-    private async processKrews(corpName: string | null = null): Promise<{ totalKrews: number }> {
+    /**
+     * 조합원 처리
+     */
+    private async processKrews(): Promise<{ totalKrews: number }> {
         const SOURCE_SHEET_NAME = "조합원 명부(실시간)";
         const SOURCE_HEADERS = [
             "법인",
@@ -151,10 +136,6 @@ export class SyncService {
             }
 
             const corpString = cellToString(corp).trim() || "미지정";
-
-            if (corpName !== null && corpString !== corpName) {
-                continue;
-            }
 
             sourceRows.push({
                 sourceId,
@@ -239,6 +220,8 @@ export class SyncService {
         console.log(`기존 크루유니언 데이터: ${existingUnionMap.size}명, 최대 krewunionId: ${maxKrewunionId}`);
 
         const sourceUnionMap = new Map<string, SourceRow>();
+        let duplicateCount = 0;
+        
         for (const sourceRow of sourceRows) {
             const uniqueKey = this.getUniqueKey({
                 corp: sourceRow.corp,
@@ -246,8 +229,16 @@ export class SyncService {
                 ldap: sourceRow.ldap,
                 phoneNumber: sourceRow.phoneNumber
             });
+
+            if (sourceUnionMap.has(uniqueKey)) {
+                console.warn('중복 발견:', uniqueKey, sourceRow);
+                duplicateCount++;
+            }
+
             sourceUnionMap.set(uniqueKey, sourceRow);
         }
+
+        console.log(`중복 제거: ${duplicateCount}명`);
 
         const updateList: Array<{ rowIndex: number; cmsStatus: string }> = [];
         const deleteList: number[] = [];
@@ -508,16 +499,11 @@ export class SyncService {
             }
         }
 
-        const mode = corpName ? `"${corpName}" 법인` : "전체";
-        console.log(`\n${mode} 처리 완료: ${corpSourceMap.size}개 시트, ${sourceRows.length}명`);
+        console.log(`\n전체 처리 완료: ${corpSourceMap.size}개 시트, ${sourceRows.length}명`);
 
-        console.log('크루 데이터 캐시 갱신 중...');
-        try {
-            await krewsService.syncKrews();
-            console.log('크루 데이터 캐시 갱신 완료');
-        } catch (error) {
-            console.warn('크루 데이터 캐시 갱신 실패:', getErrorMessage(error));
-        }
+        console.log('크루 데이터 캐시 무효화 중...');
+        krewsService.clearCache();
+        console.log('크루 데이터 캐시 무효화 완료');
 
         return { totalKrews: sourceRows.length };
     }
@@ -545,9 +531,13 @@ export class SyncService {
         return `fallback:${data.corp}:${data.name}:${data.ldap || 'no-ldap'}`;
     }
 
-    private async processKonacards(corpName: string): Promise<void> {
+    /**
+     * 전체 코나카드 갱신
+     */
+    private async processKonacards(): Promise<{ totalUpdated: number }> {
         const KONACARD_SHEET_NAME = "목록";
 
+        console.log('코나카드 시트에서 데이터 가져오는 중...');
         const values = await this.repository.getKonacardSheetData(KONACARD_SHEET_NAME);
 
         if (values.length < 2) {
@@ -592,10 +582,6 @@ export class SyncService {
                 continue;
             }
 
-            if (corpNameRaw !== corpName) {
-                continue;
-            }
-
             if (!konacardMap.has(corpNameRaw)) {
                 konacardMap.set(corpNameRaw, new Map());
             }
@@ -606,30 +592,31 @@ export class SyncService {
             });
         }
 
-        if (konacardMap.size === 0) {
-            throw new Error(`"${corpName}" 법인의 코나카드 데이터를 찾을 수 없습니다.`);
-        }
-
-        console.log(`"${corpName}" 법인 코나카드 데이터: ${konacardMap.size}개 법인`);
+        console.log(`코나카드 데이터 파싱 완료: ${konacardMap.size}개 법인`);
 
         let totalUpdated = 0;
 
-        for (const [corpNameKey, empMap] of konacardMap.entries()) {
-            const sheetName = formatSheetName(corpNameKey, 100);
+        for (const [corpName, empMap] of konacardMap.entries()) {
+            const sheetName = formatSheetName(corpName, 100);
 
             const exists = await this.repository.targetSheetExists(sheetName);
 
             if (!exists) {
-                console.log(`시트를 찾을 수 없음: ${sheetName}`);
+                console.log(`시트를 찾을 수 없음: ${sheetName} (건너뜀)`);
                 continue;
             }
 
             const updated = await this.updateKonacardInSheet(sheetName, empMap);
             totalUpdated += updated;
             console.log(`${sheetName}: ${updated}개 업데이트`);
+
+            // Rate limit 방지
+            await sleep(500);
         }
 
-        console.log(`"${corpName}" ${totalUpdated}개 코나카드 업데이트 완료`);
+        console.log(`\n전체 코나카드 갱신 완료: ${totalUpdated}개 업데이트`);
+
+        return { totalUpdated };
     }
 
     private async updateKonacardInSheet(
@@ -669,7 +656,7 @@ export class SyncService {
 
             await this.repository.formatTargetHeaderRow(sheetName);
 
-            console.log(`📝 "${sheetName}" 시트에 "코나카드" 컬럼 추가`);
+            console.log(`"${sheetName}" 시트에 "코나카드" 컬럼 추가`);
         }
 
         if (appRegisteredCol === -1) {

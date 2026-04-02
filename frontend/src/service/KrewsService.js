@@ -41,23 +41,16 @@ export class KrewsService {
     }
 
     /**
-     * 전체 조합원 동기화 (원본 → 타겟)
+     * 전체 조합원 동기화
      */
     static async syncAllKrews() {
-        return await axios.post(`${API_BASE_URL}/api/sync/all`);
+        return await axios.post(`${API_BASE_URL}/api/sync/krews`);
     }
 
     /**
-     * 법인별 조합원 동기화
+     * 전체 코나카드 동기화
      */
-    static async syncCorpKrews(corp) {
-        return await axios.post(`${API_BASE_URL}/api/sync/corp/${corp}`);
-    }
-
-    /**
-     * 법인별 코나카드 동기화
-     */
-    static async syncCorpKonacards(corp) {
-        return await axios.post(`${API_BASE_URL}/api/sync/konacard/${corp}`);
+    static async syncAllKonacards() {
+        return await axios.post(`${API_BASE_URL}/api/sync/konacards`);
     }
 }

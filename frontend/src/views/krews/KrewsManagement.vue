@@ -24,11 +24,6 @@ const syncing = ref(false);
 const selectedCorp = ref(null);
 const selectedStatus = ref(null);
 
-// 법인별 갱신용 Dialog
-const syncCorpDialogVisible = ref(false);
-const syncKonacardCorpDialogVisible = ref(false);
-const selectedSyncCorp = ref(null);
-
 // 갱신된 조합원 수 저장
 const lastSyncCount = ref(null);
 
@@ -311,106 +306,27 @@ async function syncAllKrews() {
 }
 
 // ========================================
-// 법인별 조합원 갱신
+// 전체 코나카드 갱신
 // ========================================
-function openSyncCorpDialog() {
-    selectedSyncCorp.value = null;
-    syncCorpDialogVisible.value = true;
-}
-
-async function syncCorpKrews() {
-    if (!selectedSyncCorp.value) {
-        toast.add({
-            severity: 'warn',
-            summary: '알림',
-            detail: '법인을 선택해주세요.',
-            life: 3000
-        });
-        return;
-    }
-
+async function syncAllKonacards() {
     syncing.value = true;
 
     try {
         toast.add({
             severity: 'info',
             summary: '처리 중',
-            detail: `${selectedSyncCorp.value} 조합원을 갱신하고 있습니다. 잠시만 기다려주세요...`,
+            detail: '전체 코나카드를 갱신하고 있습니다. 잠시만 기다려주세요...',
             life: 5000
         });
 
-        const response = await KrewsService.syncCorpKrews(selectedSyncCorp.value);
-
-        if (response.data.count !== undefined) {
-            lastSyncCount.value = response.data.count;
-        }
+        const response = await KrewsService.syncAllKonacards();
 
         toast.add({
             severity: 'success',
             summary: 'Success',
-            detail: response.data.message || `${selectedSyncCorp.value} 조합원 정보가 갱신되었습니다.`,
+            detail: response.data.message || '전체 코나카드가 갱신되었습니다.',
             life: 3000
         });
-
-        syncCorpDialogVisible.value = false;
-
-        // ✅ Rate Limit 회피: 2초 대기 (이중 안전장치)
-        console.log('⏳ Rate limit 회피: 2초 대기...');
-        await sleep(2000);
-
-        await loadKrews(true);
-    } catch (error) {
-        console.error('Corp sync error:', error);
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: `${selectedSyncCorp.value} 조합원 갱신에 실패했습니다.`,
-            life: 3000
-        });
-    } finally {
-        syncing.value = false;
-    }
-}
-
-// ========================================
-// 법인별 코나카드 갱신
-// ========================================
-function openSyncKonacardCorpDialog() {
-    selectedSyncCorp.value = null;
-    syncKonacardCorpDialogVisible.value = true;
-}
-
-async function syncCorpKonacards() {
-    if (!selectedSyncCorp.value) {
-        toast.add({
-            severity: 'warn',
-            summary: '알림',
-            detail: '법인을 선택해주세요.',
-            life: 3000
-        });
-        return;
-    }
-
-    syncing.value = true;
-
-    try {
-        toast.add({
-            severity: 'info',
-            summary: '처리 중',
-            detail: `${selectedSyncCorp.value} 코나카드를 갱신하고 있습니다. 잠시만 기다려주세요...`,
-            life: 5000
-        });
-
-        const response = await KrewsService.syncCorpKonacards(selectedSyncCorp.value);
-
-        toast.add({
-            severity: 'success',
-            summary: 'Success',
-            detail: response.data.message || `${selectedSyncCorp.value} 코나카드가 갱신되었습니다.`,
-            life: 3000
-        });
-
-        syncKonacardCorpDialogVisible.value = false;
 
         console.log('⏳ Rate limit 회피: 2초 대기...');
         await sleep(2000);
@@ -421,7 +337,7 @@ async function syncCorpKonacards() {
         toast.add({
             severity: 'error',
             summary: 'Error',
-            detail: `${selectedSyncCorp.value} 코나카드 갱신에 실패했습니다.`,
+            detail: '전체 코나카드 갱신에 실패했습니다.',
             life: 3000
         });
     } finally {
@@ -503,8 +419,7 @@ onMounted(async () => {
             <Toolbar class="mb-6">
                 <template #start>
                     <Button label="전체조합원갱신" icon="pi pi-refresh" severity="success" raised class="mr-2" :disabled="syncing || loading" :loading="syncing" @click="syncAllKrews" />
-                    <Button label="법인별조합원갱신" icon="pi pi-building" severity="info" raised class="mr-2" :disabled="syncing || loading" @click="openSyncCorpDialog" />
-                    <Button label="법인별코나카드갱신" icon="pi pi-id-card" severity="warn" raised :disabled="syncing || loading" @click="openSyncKonacardCorpDialog" />
+                    <Button label="전체코나카드갱신" icon="pi pi-id-card" severity="warn" raised :disabled="syncing || loading" @click="syncAllKonacards" />
                 </template>
 
                 <template #end>
@@ -645,49 +560,7 @@ onMounted(async () => {
             </DataTable>
         </div>
 
-        <!-- 법인별 조합원 갱신 Dialog -->
-        <Dialog v-model:visible="syncCorpDialogVisible" :style="{ width: '450px' }" header="법인별 조합원 갱신" :modal="true" :closable="!syncing">
-            <div class="flex flex-col gap-4">
-                <label for="sync-corp" class="font-bold">법인 선택</label>
-                <Select id="sync-corp" v-model="selectedSyncCorp" :options="corpList" placeholder="법인을 선택하세요" class="w-full" :disabled="syncing">
-                    <template #value="slotProps">
-                        <Tag v-if="slotProps.value" :value="slotProps.value" :severity="getCorpColor(slotProps.value)" />
-                        <span v-else>법인을 선택하세요</span>
-                    </template>
-                    <template #option="slotProps">
-                        <Tag :value="slotProps.option" :severity="getCorpColor(slotProps.option)" />
-                    </template>
-                </Select>
-            </div>
-
-            <template #footer>
-                <Button label="취소" icon="pi pi-times" outlined severity="secondary" :disabled="syncing" @click="syncCorpDialogVisible = false" />
-                <Button label="갱신" icon="pi pi-check" raised severity="success" :loading="syncing" :disabled="syncing" @click="syncCorpKrews" />
-            </template>
-        </Dialog>
-
-        <!-- 법인별 코나카드 갱신 Dialog -->
-        <Dialog v-model:visible="syncKonacardCorpDialogVisible" :style="{ width: '450px' }" header="법인별 코나카드 갱신" :modal="true" :closable="!syncing">
-            <div class="flex flex-col gap-4">
-                <label for="sync-konacard-corp" class="font-bold">법인 선택</label>
-                <Select id="sync-konacard-corp" v-model="selectedSyncCorp" :options="corpList" placeholder="법인을 선택하세요" class="w-full" :disabled="syncing">
-                    <template #value="slotProps">
-                        <Tag v-if="slotProps.value" :value="slotProps.value" :severity="getCorpColor(slotProps.value)" />
-                        <span v-else>법인을 선택하세요</span>
-                    </template>
-                    <template #option="slotProps">
-                        <Tag :value="slotProps.option" :severity="getCorpColor(slotProps.option)" />
-                    </template>
-                </Select>
-            </div>
-
-            <template #footer>
-                <Button label="취소" icon="pi pi-times" outlined severity="secondary" :disabled="syncing" @click="syncKonacardCorpDialogVisible = false" />
-                <Button label="갱신" icon="pi pi-check" raised severity="warn" :loading="syncing" :disabled="syncing" @click="syncCorpKonacards" />
-            </template>
-        </Dialog>
-
-        <!-- ✅ 조합원 상세 정보 컴포넌트 -->
+        <!-- 조합원 상세 정보 컴포넌트 -->
         <KrewDetail :krew="selectedKrew" :visible="krewDialog" @close="krewDialog = false" />
     </div>
 </template>
