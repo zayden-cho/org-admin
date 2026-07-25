@@ -6,6 +6,7 @@ import { useToast } from 'primevue/usetoast';
 
 import { KrewsService } from '@/service/KrewsService';
 import KrewDetail from '@/views/krews/KrewDetail.vue';
+import KrewsSyncResult from '@/views/krews/KrewsSyncResult.vue';
 
 const toast = useToast();
 const dt = ref();
@@ -13,6 +14,10 @@ const krews = ref([]);
 const krewDialog = ref(false);
 const selectedKrew = ref({});
 const selectedKrews = ref([]);
+
+const konacardNotFoundDialogVisible = ref(false);
+const konacardNotFoundItems = ref([]);
+
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -328,6 +333,11 @@ async function syncAllKonacards() {
             life: 3000
         });
 
+        if (response.data.notFoundCount > 0) {
+            konacardNotFoundItems.value = response.data.notFoundItems;
+            konacardNotFoundDialogVisible.value = true;
+        }
+
         console.log('⏳ Rate limit 회피: 2초 대기...');
         await sleep(2000);
 
@@ -343,6 +353,32 @@ async function syncAllKonacards() {
     } finally {
         syncing.value = false;
     }
+}
+
+function copyNotFoundItems() {
+    const text = konacardNotFoundItems.value.map((item) => `${item.corp}\t${item.name}\t${item.empNo}\t${item.cardNumber}`).join('\n');
+
+    const header = '법인\t이름\t사원번호\t카드번호\n';
+    const fullText = header + text;
+
+    navigator.clipboard
+        .writeText(fullText)
+        .then(() => {
+            toast.add({
+                severity: 'success',
+                summary: '복사 완료',
+                detail: `${konacardNotFoundItems.value.length}건의 데이터가 복사되었습니다.`,
+                life: 2000
+            });
+        })
+        .catch(() => {
+            toast.add({
+                severity: 'error',
+                summary: '복사 실패',
+                detail: '클립보드 복사에 실패했습니다.',
+                life: 2000
+            });
+        });
 }
 
 // ========================================
@@ -560,8 +596,9 @@ onMounted(async () => {
             </DataTable>
         </div>
 
-        <!-- 조합원 상세 정보 컴포넌트 -->
         <KrewDetail :krew="selectedKrew" :visible="krewDialog" @close="krewDialog = false" />
+
+        <KrewsSyncResult :items="konacardNotFoundItems" :visible="konacardNotFoundDialogVisible" @close="konacardNotFoundDialogVisible = false" />
     </div>
 </template>
 

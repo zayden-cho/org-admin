@@ -39,6 +39,8 @@ export class SyncController {
                 success: result.success,
                 message: result.message,
                 count: result.count,
+                notFoundCount: result.notFoundCount,
+                notFoundItems: result.notFoundItems,
                 timestamp: new Date().toISOString()
             });
         } catch (error) {

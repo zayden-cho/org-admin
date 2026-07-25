@@ -1,10 +1,5 @@
 import { CellValue } from '@/core/types/sheets.types';
 
-export interface KonacardData {
-    cardNumber: string;
-    appRegistered: string;
-}
-
 export interface SourceRow {
     sourceId: CellValue;
     corp: string;
@@ -18,4 +13,18 @@ export interface SourceRow {
 export interface SheetItem {
     corpString: string;
     rows: SourceRow[];
+}
+
+export interface KonacardItem {
+    name: string;
+    empNo: string;
+    cardNumber: string;
+    appRegistered: string;
+}
+
+export interface NotFoundKonacardItem {
+    corp: string;
+    name: string;
+    empNo: string;
+    cardNumber: string;
 }
